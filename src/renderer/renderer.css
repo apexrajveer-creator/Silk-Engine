@@ -1,0 +1,24 @@
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;cursor:default;user-select:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
+body.nogl{background:radial-gradient(ellipse at 65% 30%,#17479e,#000 75%)}
+body.nogl #gl{display:none}
+#web iframe{position:fixed;border:0;background:#000}
+#overlays .ovl{position:fixed;pointer-events:none;will-change:transform}
+.bird{position:absolute;transform:translate(-50%,-50%);filter:drop-shadow(0 12px 22px #0007)}
+.clock{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);text-align:center;color:#e6e9f0;font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif}
+.clock time{display:block;font-size:34px;font-weight:200;letter-spacing:.12em}
+.clock span{display:block;font-size:10px;letter-spacing:.24em;margin-top:9px;color:#b5bfd2}
+/* 2px decode sources for <video>: present in the document so the browser never throttles them */
+#decoders{position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;overflow:hidden;pointer-events:none}
+#decoders video{width:2px;height:2px}
+#stats{position:fixed;left:12px;top:10px;font:11px/1.5 Consolas,monospace;color:#9fb6da;background:#000a;padding:6px 10px;border-radius:6px;z-index:5}
+
+.clock time{font-size:calc(34px * var(--clock-scale,1))}
+.clock span{font-size:calc(10px * var(--clock-scale,1))}
+.clock span[hidden]{display:none}
+.clock[data-position="top"]{bottom:auto;top:7%}
+.clock[data-position="lower-left"]{left:7%;transform:none;text-align:left}
+.clock[data-position="lower-right"]{left:auto;right:7%;transform:none;text-align:right}
+
+#widgetLayer{position:fixed;inset:0;pointer-events:none;z-index:3}
+#widgetLayer canvas{pointer-events:none}

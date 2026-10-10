@@ -1,0 +1,34 @@
+/* A spacious, borderless identity page using the original silver emblem. */
+#about{padding-top:8px;--about-ink:#f1f1f3;--about-muted:#929299}
+.about-stage{position:relative;min-height:calc(100svh - 164px);box-sizing:border-box;padding:12px 0 82px;display:flex;align-items:center;justify-content:center;flex-direction:column;isolation:isolate;perspective:1000px;overflow:clip}
+.about-stage::before{content:'';position:absolute;inset:0;z-index:-2;background:radial-gradient(ellipse at 50% 40%,#b5c6e00c,transparent 60%);pointer-events:none}
+.about-ghost{position:absolute;top:10%;left:0;right:0;text-align:center;font-size:clamp(130px,27vw,360px);font-weight:800;letter-spacing:.075em;line-height:1;color:#ffffff04;-webkit-text-stroke:1px #ffffff0c;pointer-events:none;z-index:-1}
+.about-bird-depth{position:relative;transform-origin:50% 55%}
+.about-bird{display:block;width:clamp(220px,min(44svh,42vw),480px);aspect-ratio:1;position:relative;border-radius:50%;perspective:900px;isolation:isolate}
+.about-bird::after{content:'';position:absolute;inset:16%;border:1px solid #e4edff55;border-radius:50%;opacity:0;pointer-events:none}
+.about-bird-tilt{display:block;width:100%;height:100%;transform:rotateX(var(--bird-x,0deg)) rotateY(var(--bird-y,0deg));transition:transform .28s ease-out;pointer-events:none}
+.about-bird img{width:100%;height:100%;object-fit:contain;transform:translateY(0);pointer-events:none;filter:drop-shadow(0 14px 22px #0008);transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.about-bird:hover img{transform:translateY(-6px)}
+.about-caption{text-align:center;position:relative;margin-top:12px}
+.about-kicker{font-size:9px;letter-spacing:.22em;color:var(--about-muted);display:block}
+.about-title{font-size:clamp(54px,min(10vw,14svh),132px);line-height:1.05;letter-spacing:-.065em;font-weight:600;margin:8px 0;color:var(--about-ink)}
+.about-title>span{display:inline-block;font-family:var(--font);font-style:normal;font-weight:600;letter-spacing:-.065em;color:var(--about-ink)}
+.about-line{font-size:15px;color:#a1a1aa;letter-spacing:.05em;margin:14px 0 0;overflow:hidden}.about-line span{display:inline-block}
+.about-credit{position:absolute;left:0;bottom:8px;text-align:left}
+.about-creator{font-size:clamp(22px,2.5vw,32px);font-weight:500;letter-spacing:-.04em;line-height:1.2;margin:8px 0 0}.about-creator>span{display:inline-block}
+.about-signature{padding:48px 0 12px}
+.about-signature>p{max-width:540px;margin:0;font-size:14px;line-height:1.8;color:#aaaab2}
+.about-principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:48px;padding:38px 0 44px}
+.about-number{font:11px Consolas,monospace;color:#72727b}.about-principles h3{font-size:15px;font-weight:500;margin:14px 0 10px}.about-principles p{font-size:12px;line-height:1.75;color:#909099;margin:0;max-width:290px}
+.about-footer{padding-top:22px;display:flex;justify-content:space-between;align-items:flex-start;gap:30px;font-size:9px;letter-spacing:.13em;color:#74747e}
+.about-metadata{display:flex;flex-direction:column;gap:10px}.about-metadata #ver{font-size:10px;letter-spacing:.04em}
+.about-footer details{max-width:420px}.about-footer summary{cursor:pointer;text-align:right;font-size:11px;letter-spacing:0;color:#aaa}.about-details{padding-top:16px;line-height:1.7;font-size:12px;letter-spacing:0}.about-details #cfgdir{overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
+.about-enter .about-bird{animation:emblem-arrive .85s cubic-bezier(.16,1,.3,1) both}.about-enter .about-title>span{animation:about-reveal .7s .08s both}.about-enter .about-title>span:nth-child(2){animation-delay:.18s}.about-enter .about-line span{animation:about-reveal .8s .3s both}.about-enter .about-creator>span{animation:about-reveal .8s .25s both}.about-enter .about-creator>span:nth-child(2){animation-delay:.36s}
+.about-bird.is-flying img{animation:emblem-flight 1.1s cubic-bezier(.2,.7,.2,1) both}.about-bird.is-flying::after{animation:emblem-wave 1.1s ease-out both}
+@keyframes about-reveal{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes emblem-arrive{from{opacity:0;transform:translateY(22px) scale(.93)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes emblem-flight{0%,100%{transform:translateY(0) rotate(0) scale(1)}40%{transform:translateY(-20px) rotate(-5deg) scale(1.055)}70%{transform:translateY(-5px) rotate(2deg) scale(1.015)}}
+@keyframes emblem-wave{0%{opacity:0;transform:scale(.7)}20%{opacity:.5}100%{opacity:0;transform:scale(2.5)}}
+@media(max-width:1000px){.about-principles{gap:24px}}
+@media(max-width:600px){.about-stage{padding-bottom:92px}.about-bird{width:clamp(210px,min(40svh,65vw),300px)}.about-title{font-size:clamp(40px,10vw,60px)}.about-line{font-size:12px}.about-ghost{top:18%;font-size:26vw}.about-signature{padding-top:32px}.about-principles{grid-template-columns:1fr;gap:26px}.about-principles article{display:grid;grid-template-columns:24px 1fr;column-gap:16px}.about-principles h3{margin:0 0 8px}.about-principles p{grid-column:2}.about-footer{flex-wrap:wrap}.about-footer summary{text-align:left}}
+@media(prefers-reduced-motion:reduce){#about *,#about *::after{animation:none!important;transition:none!important}.about-bird-tilt,.about-bird:hover img{transform:none!important}.about-bird-depth,.about-ghost{transform:none!important;opacity:1!important}}

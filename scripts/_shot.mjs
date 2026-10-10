@@ -1,0 +1,28 @@
+import { chromium } from '@playwright/test';
+import { spawn } from 'node:child_process';
+const srv = spawn('node', ['scripts/preview-server.mjs'], { stdio: 'ignore' });
+await new Promise(r => setTimeout(r, 1200));
+const b = await chromium.launch({ executablePath: process.env.SILK_BROWSER_PATH, args: ['--enable-unsafe-swiftshader'] });
+const errs = [];
+const pg = await b.newPage({ viewport: { width: 1600, height: 960 } }); pg.on('pageerror', e => errs.push(String(e)));
+await pg.goto('http://127.0.0.1:5173/index.html'); await pg.waitForFunction(() => window.silkReady === true); await pg.waitForTimeout(1800);
+await pg.screenshot({ path: '/tmp/cine-silk.png' });
+const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.click('#add')]);
+await fc.setFiles(['/tmp/Reaction Coral Live Wallpaper 4K Animated Background.png']);
+await pg.waitForTimeout(3500);
+await pg.screenshot({ path: '/tmp/cine-media.png' });
+console.log('title:', await pg.textContent('#heroName'), '| full:', await pg.getAttribute('#heroName', 'title'), '| kicker:', await pg.textContent('#heroTarget'), '| credits:', await pg.textContent('#heroSub'));
+console.log('ambient:', await pg.evaluate(() => getComputedStyle(document.getElementById('library')).getPropertyValue('--ambient')), '| displays hidden:', await pg.evaluate(() => document.getElementById('displaysBlock').hidden));
+await pg.mouse.move(800, 500); await pg.mouse.wheel(0, 380); await pg.waitForTimeout(700);
+await pg.screenshot({ path: '/tmp/cine-scrolled.png' });
+await pg.mouse.wheel(0, -2000); await pg.waitForTimeout(500);
+// next / prev
+const before = await pg.textContent('#heroName');
+await pg.click('#heroNext'); await pg.waitForTimeout(1200); const after = await pg.textContent('#heroName');
+await pg.click('#heroPrev'); await pg.waitForTimeout(1200); const back = await pg.textContent('#heroName');
+console.log('transport:', before, '->', after, '->', back);
+await pg.click('#heroPause'); await pg.waitForTimeout(400);
+console.log('pause state:', await pg.getAttribute('#heroPause', 'aria-label'), '|', await pg.textContent('#heroTarget'));
+await pg.click('#heroPause');
+console.log('errors:', errs);
+await b.close(); srv.kill();

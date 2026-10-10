@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Studio and wallpaper renderer. Third-party web wallpapers run in a separate origin (wp.localhost) and get no IPC access.",
+  "windows": [
+    "studio",
+    "wallpaper"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-destroy"
+  ]
+}

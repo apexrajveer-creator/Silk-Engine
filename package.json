@@ -1,0 +1,24 @@
+{
+  "name": "silk-engine",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Silk Engine \u2014 live wallpapers and GPU simulations behind your desktop icons",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "preview": "node scripts/preview-server.mjs",
+    "test": "node --test tests/*.test.cjs",
+    "verify": "node scripts/verify.mjs",
+    "test:ui": "playwright test",
+    "bench:ui": "node scripts/bench-ui.mjs",
+    "test:stress": "node scripts/stress-renderer.mjs",
+    "predev": "npm run verify",
+    "prebuild": "npm run verify && npm test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "@tauri-apps/cli": "^2",
+    "css-tree": "3.1.0"
+  },
+  "type": "module"
+}

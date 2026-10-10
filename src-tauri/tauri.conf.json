@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Silk Engine",
+  "version": "1.0.0",
+  "identifier": "com.echelon.silk",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src https://*.supabase.co 'self' data: blob: http://wp.localhost wp:; media-src 'self' blob: http://wp.localhost wp:; frame-src http://wp.localhost wp:; connect-src https://*.supabase.co 'self' ipc: http://ipc.localhost http://wp.localhost wp:; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "Live wallpapers and GPU simulations",
+    "longDescription": "Silk Engine puts videos, GIFs, web wallpapers and real-time GPU simulations behind your desktop icons, with an OLED mode for any display and aggressive memory saving.",
+    "copyright": "\u00a9 ECHELON",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

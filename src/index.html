@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Silk Engine</title>
+<link rel="stylesheet" href="studio/studio.css">
+<link rel="stylesheet" href="community/community.css">
+<link rel="stylesheet" href="studio/about.css">
+</head>
+<body>
+<div id="startupFailure" hidden style="position:fixed;inset:20% 15%;z-index:9999;padding:32px;background:#18191f;color:white;border:1px solid #555;border-radius:20px;font:16px/1.5 Segoe UI,sans-serif">
+  <h2>Studio couldn’t start</h2><p id="startupMessage" style="user-select:text"></p><button id="startupRetry" style="padding:12px 24px;background:#0a84ff;color:white;border:0;border-radius:10px">Reload Studio</button>
+</div>
+<script src="startup.js"></script>
+<canvas class="page-bg" id="bg" aria-hidden="true"></canvas>
+
+<header class="navbar" id="navbar" data-tauri-drag-region>
+  <img class="mark" src="assets/echelon-bird.svg" alt="" data-tauri-drag-region>
+  <span class="brand" data-tauri-drag-region>Silk <span class="dim" data-tauri-drag-region>Engine</span></span>
+  <span class="compact-title" id="compact" data-tauri-drag-region></span>
+  <span class="spacer" data-tauri-drag-region></span>
+  <span class="status-pill" id="status"><i></i><span>Running</span></span>
+  <button class="btn small tinted" id="pause">Pause</button>
+  <button class="btn small tinted" id="addWeb" title="Add a web wallpaper folder">Web folder</button>
+  <button class="btn small ghost" id="add"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Add</button>
+  <div class="winctl" id="winctl" hidden>
+    <button class="wbtn" id="wMin" aria-label="Minimise"><svg viewBox="0 0 12 12"><path d="M2.5 6h7"/></svg></button>
+    <button class="wbtn" id="wMax" aria-label="Maximise"><svg viewBox="0 0 12 12" class="i-max"><rect x="2.5" y="2.5" width="7" height="7" rx="1.6"/></svg><svg viewBox="0 0 12 12" class="i-restore"><rect x="2" y="4" width="6" height="6" rx="1.4"/><path d="M4.2 2h4.4A1.4 1.4 0 0 1 10 3.4v4.4"/></svg></button>
+    <button class="wbtn close" id="wClose" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- LIBRARY -->
+  <section class="page" id="library">
+    <h1 class="visually-hidden">Library</h1>
+    <!-- Cinematic hero: full-bleed frame, title card on the lower third, production mark bottom-right. -->
+    <article class="cine" id="hero" aria-labelledby="heroName">
+      <div class="cine-frame">
+        <div class="cine-media"><div class="hero-bg" id="heroBg"></div><div class="cine-grade" aria-hidden="true"></div></div>
+      </div>
+      <img class="hero-logo" src="assets/echelon-bird.svg" alt="">
+      <button class="hero-toggle" id="heroToggle" type="button" aria-label="Show eagle on this wallpaper" aria-pressed="false" title="Click to toggle eagle"></button>
+      <div class="cine-copy">
+        <div class="cine-kicker" id="heroTarget"></div>
+        <h2 class="hero-name" id="heroName"></h2>
+        <div class="cine-credits" id="heroSub"></div>
+        <div class="hero-actions">
+          <button class="btn primary" id="customise">Customise</button>
+          <div class="transport" role="group" aria-label="Wallpaper playback">
+            <button class="tbtn" id="heroPrev" type="button" aria-label="Previous wallpaper" title="Previous wallpaper"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14"/><path class="fill" d="M18 6 9 12l9 6z"/></svg></button>
+            <button class="tbtn tbtn-main" id="heroPause" type="button" aria-label="Pause wallpaper" title="Pause"><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M8 5.5v13l10.5-6.5z"/></svg></button>
+            <button class="tbtn" id="heroNext" type="button" aria-label="Next wallpaper" title="Next wallpaper"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14"/><path class="fill" d="M6 6l9 6-9 6z"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="cine-studio" aria-hidden="true"><img src="assets/echelon-bird.svg" alt=""><span>ECHELON</span></div>
+    </article>
+    <div class="cine-ambient" aria-hidden="true"></div>
+    <div class="cine-rail">
+      <div class="cine-displays" id="displaysBlock">
+        <div class="section-head"><h2>Displays</h2><span class="meta" id="dispMeta"></span></div>
+        <div class="displays">
+          <div class="map" id="map"></div>
+          <div class="seg" id="targets"><span class="thumb"></span></div>
+          <label class="row plain"><div class="main"><div class="title">Span across displays</div></div><input type="checkbox" class="switch" id="span"></label>
+        </div>
+      </div>
+      <div class="group" id="quickControls" aria-label="Quick controls"></div>
+    </div>
+    <p class="cine-count" id="sub"></p>
+
+    <div class="section-head spaced"><h2>Simulations</h2></div>
+    <div class="cards" id="scenes"></div>
+
+    <div class="section-head spaced"><h2>My wallpapers</h2><div class="seg small" id="filter"><span class="thumb"></span></div></div>
+    <div class="desktop-toolbar"><input id="librarySearch" type="search" placeholder="Search your wallpapers" aria-label="Search local wallpapers"><label><input id="favoritesOnly" type="checkbox">Favourites</label><select id="librarySort" aria-label="Sort wallpapers"><option value="added">Added order</option><option value="name">Name A–Z</option></select></div>
+    <div class="cards" id="mine"></div>
+    <div class="group glass empty" id="empty"><strong>Nothing here yet</strong>Drop videos, GIFs, images or a web wallpaper folder anywhere in this window, or press Add.</div>
+    <div class="section-head spaced"><h2>Discover</h2><div class="discover-actions"><button class="btn small tinted" id="discoverAccount">Sign in</button><button class="btn small tinted" id="discoverUpload">Upload</button></div></div>
+    <div class="discover-toolbar"><input id="discoverSearch" type="search" placeholder="Search wallpapers" aria-label="Search community wallpapers"><select id="discoverType" aria-label="Wallpaper format"><option value="">All formats</option><option value="gif">GIF</option><option value="mp4">MP4</option><option value="webm">WebM</option></select><button class="btn small tinted" id="discoverRetry">Refresh</button></div>
+    <p id="discoverStatus" role="status"></p><div class="cards" id="discoverCards"></div><button id="discoverMore" class="btn tinted" hidden>Load more</button>
+  </section>
+
+  <!-- WIDGET WORKSPACE -->
+  <section class="page" id="widgets" hidden>
+    <div class="widget-heading"><div><h1 class="large-title">Widgets</h1><p class="subtitle">Your desktop, composed.</p></div><label class="widget-master">Widgets<input class="switch" type="checkbox" id="widgetsEnabled"></label></div>
+    <div class="widget-workspace">
+      <div class="widget-main">
+        <div class="widget-toolbar"><select id="widgetMonitor" aria-label="Preview display"></select><label class="wt-snap"><input type="checkbox" class="switch" id="widgetSnap" checked>Snap to grid</label><span class="wt-sep" aria-hidden="true"></span><button class="wt-icon" id="widgetUndo" aria-label="Undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button class="wt-icon" id="widgetRedo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button><button class="widget-save" id="widgetSaveState">Saved</button></div>
+        <div class="widget-screen" id="widgetScreen" tabindex="0" aria-label="Desktop widget editor. Drag to move; use corner handles to resize. Arrow keys nudge; Delete removes; Control Z undoes.">
+          <div class="art widget-backdrop" id="widgetBackdrop"></div><canvas id="widgetCanvas"></canvas>
+          <div class="widget-grid" aria-hidden="true"></div><div class="widget-stage-empty" id="widgetStageEmpty" hidden><b>An empty desktop</b><span>Pick a widget above to place it here. Drag to move, use the corners to resize.</span></div><div id="widgetSelection" hidden><i data-handle="nw"></i><i data-handle="ne"></i><i data-handle="sw"></i><i data-handle="se"></i></div>
+        </div>
+        <div class="widget-preview-footer"><span id="widgetAudioState">Waiting for audio</span><button class="btn small tinted" id="widgetAudio">Enable system audio</button><button class="btn small tinted" id="widgetDemo" aria-pressed="false">Test visualizer</button></div>
+        <div class="section-head spaced widget-add-head"><h2>Add a widget</h2></div>
+        <div class="widget-palette" id="widgetPalette"></div>
+        <div class="section-head spaced"><h2>Rainmeter skins</h2><div class="widget-import-buttons"><button class="btn small tinted" id="skinImport">Import skin</button><button class="btn small tinted" id="skinImportFolder">Import folder</button></div></div>
+        <input type="file" id="skinFile" accept=".rmskin,.zip,.ini" hidden><input type="file" id="skinFolder" webkitdirectory multiple hidden>
+        <div class="group glass widget-import" id="skinImportPanel" hidden><select id="skinEntry" aria-label="Skin to import"></select><p id="skinStatus"></p><ul id="skinWarnings"></ul><div class="widget-actions"><button class="btn small primary" id="skinConfirm" disabled>Add supported meters</button><button class="btn small tinted" id="skinCancel">Cancel</button></div></div>
+      </div>
+      <aside class="widget-sidebar"><div class="section-head"><h2>Layers</h2></div><div class="group glass" id="widgetLayers"></div><div class="section-head spaced"><h2>Customise</h2></div><div class="group glass widget-inspector" id="widgetInspector"></div></aside>
+    </div>
+  </section>
+
+  <section class="page" id="desktops" hidden>
+    <h1 class="large-title">Desktops</h1>
+    <p class="subtitle">Save complete looks, and let wallpapers rotate on their own.</p>
+    <div class="desktop-layout">
+      <div class="desktop-column">
+        <div class="section-head"><h2>Saved profiles</h2><button class="btn small tinted" id="profileUndo" hidden>Undo apply</button></div>
+        <form id="profileForm" class="profile-create"><label for="profileName" class="visually-hidden">Profile name</label><input id="profileName" maxlength="80" placeholder="Name this desktop, e.g. Evening" autocomplete="off"><button class="btn primary" id="profileSave" type="submit">Save</button></form>
+        <p class="desktop-hint">A profile remembers every wallpaper, display setting and widget layout exactly as they are now.</p>
+        <div id="profileList" class="profile-list"></div>
+      </div>
+      <div class="desktop-column playlist-column">
+        <div class="section-head"><h2>Playlist</h2><label class="playlist-enable">Rotate automatically<input class="switch" type="checkbox" id="playlistEnabled"></label></div>
+        <div class="playlist-settings">
+          <label>Display<select id="playlistMonitor" aria-label="Playlist display"></select></label>
+          <label>Change every<select id="playlistInterval" aria-label="Change interval"><option value="30">30 seconds</option><option value="60">Minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option><option value="3600">Hour</option><option value="86400">Day</option></select></label>
+          <label class="playlist-shuffle">Shuffle<input class="switch" type="checkbox" id="playlistShuffle"></label>
+          <button class="btn primary playlist-save" id="playlistSave" type="button">Save playlist</button>
+        </div>
+        <div class="playlist-heading"><span class="playlist-status"><span id="playlistCount" role="status">Choose wallpapers</span><span class="dim" id="playlistSummary"></span></span><span class="playlist-bulk"><button class="link-btn" type="button" id="playlistAll">Select all</button><button class="link-btn" type="button" id="playlistNone">Clear</button></span></div>
+        <div id="playlistItems" class="playlist-items"></div>
+      </div>
+    </div>
+  </section>
+  <!-- DISPLAY -->
+  <section class="page" id="display" hidden>
+    <h1 class="large-title">Display</h1>
+    <p class="subtitle">How every wallpaper looks on your screens.</p>
+    <div class="look-hero">
+      <div class="look-frame"><div class="art look-art" id="lookArt"></div><div class="look-vignette" aria-hidden="true"></div><div class="look-grain" aria-hidden="true"></div><span class="look-badge">Live preview</span></div>
+      <div class="look-side">
+        <h2>Looks</h2>
+        <p class="dim">One click sets brightness, contrast, saturation and temperature. Fine-tune below.</p>
+        <div class="look-presets" id="lookPresets" role="group" aria-label="Colour looks"></div>
+        <div class="look-readout" id="lookReadout" aria-label="Current colour values"></div>
+      </div>
+    </div>
+    <div class="grid insights" id="displayGroups"></div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section class="page" id="system" hidden>
+    <h1 class="large-title">System</h1>
+    <p class="subtitle">Performance, power, input and startup.</p>
+    <div class="perf-presets" role="group" aria-label="Performance presets">
+      <button class="perf-card" id="presetQuiet" type="button"><span class="perf-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg></span><b>Quiet</b><span class="perf-fps">24 fps · Eco</span><small>Least power. Ideal on battery.</small></button>
+      <button class="perf-card" id="presetBalanced" type="button"><span class="perf-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M5 9l7-5 7 5M5 15l7 5 7-5"/></svg></span><b>Balanced</b><span class="perf-fps">30 fps · Auto quality</span><small>Smooth motion, low cost. Recommended.</small></button>
+      <button class="perf-card" id="presetSmooth" type="button"><span class="perf-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg></span><b>Smooth</b><span class="perf-fps">60 fps · High quality</span><small>Silkiest motion for strong GPUs.</small></button>
+      <button class="perf-card" id="presetMax" type="button"><span class="perf-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></span><b>Max</b><span class="perf-fps">144 fps · High quality</span><small>For high-refresh displays and fast GPUs.</small></button>
+    </div>
+    <div class="grid insights" id="systemGroups"></div>
+    <div class="section-head spaced"><h2>Maintenance</h2></div>
+    <div class="maint-grid">
+      <div class="maint-col"><div class="maint-label">Troubleshoot</div><div class="maint-list">
+        <button class="mrow" id="restartRenderer" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></span><span class="m-text"><b>Restart wallpaper</b><small>Reload the renderer if something looks stuck</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="showDiagnostics" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></span><span class="m-text"><b>Diagnostics</b><small>A report to copy when asking for help</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="retrySettings" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h11l3 3v11H5z"/><path d="M8 5v5h7V5M8 19v-6h8v6"/></svg></span><span class="m-text"><b>Save pending changes</b><small>Retry writing settings that didn't save</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="keyboardShortcuts" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg></span><span class="m-text"><b>Keyboard shortcuts</b><small>Every shortcut in the Studio</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </div></div>
+      <div class="maint-col"><div class="maint-label">Backup &amp; transfer</div><div class="maint-list">
+        <button class="mrow" id="backupSettings" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h14"/></svg></span><span class="m-text"><b>Back up settings</b><small>Keep a restore point on this PC</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="restoreSettings" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 18V8M8 12l4-4 4 4"/><path d="M5 5h14"/></svg></span><span class="m-text"><b>Restore backup</b><small>Return to your last restore point</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="exportSettings" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5H5V6h5"/></svg></span><span class="m-text"><b>Export settings</b><small>Save everything to a file</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="importSettings" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 20H4v-6M4 20l9-9"/><path d="M6 10V5h13v13h-5"/></svg></span><span class="m-text"><b>Import settings</b><small>Load settings from a file</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </div></div>
+      <div class="maint-col"><div class="maint-label">Reset</div><div class="maint-list">
+        <button class="mrow danger" id="resetPreferences" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v5h5"/></svg></span><span class="m-text"><b>Reset preferences</b><small>Restore default display and system settings; your library stays</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="mrow" id="undoReset" type="button"><span class="m-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></span><span class="m-text"><b>Undo preference reset</b><small>Bring back the settings from before the reset</small></span><svg class="m-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </div></div>
+      <input id="settingsFile" type="file" accept=".json,application/json" hidden>
+    </div>
+    <div id="diagnosticsPanel" class="group glass maintenance-report" hidden>
+      <label for="diagnosticsText">Diagnostics report</label>
+      <textarea id="diagnosticsText" readonly spellcheck="false" aria-label="Diagnostics report"></textarea>
+      <button class="btn tinted" id="copyDiagnostics">Copy report</button>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="page about-page" id="about" hidden>
+    <div class="about-stage" id="aboutStage">
+      <div class="about-ghost" aria-hidden="true">SILK</div>
+      <div class="about-bird-depth" id="aboutBirdDepth"><button class="about-bird" id="aboutBird" aria-label="Animate the ECHELON bird">
+        <span class="about-bird-tilt" id="aboutBirdTilt"><img src="assets/echelon-bird.svg" alt="ECHELON silver bird" draggable="false"></span>
+      </button></div>
+      <div class="about-caption"><h1 class="about-title" aria-label="Silk Engine"><span aria-hidden="true">Silk</span> <span aria-hidden="true">Engine</span></h1><p class="about-line"><span>A desktop with a pulse.</span></p></div>
+      <div class="about-credit"><span class="about-kicker">CREATED BY</span><h2 class="about-creator"><span>Rajveer</span> <span>Raj</span></h2></div>
+    </div>
+    <div class="about-signature">
+      <p>Silk Engine turns the space behind your work into something that feels alive. Motion and atmosphere, entirely yours.</p>
+    </div>
+    <div class="about-principles">
+      <article><span class="about-number">01</span><h3>Motion, with feeling.</h3><p>Flowing simulations, moving wallpapers and music made visible.</p></article>
+      <article><span class="about-number">02</span><h3>A space of your own.</h3><p>Compose your screens with widgets, colour and saved desktops.</p></article>
+      <article><span class="about-number">03</span><h3>Quiet by design.</h3><p>Built to pause when hidden and keep your desktop in focus.</p></article>
+    </div>
+    <footer class="about-footer"><div class="about-metadata"><span>ECHELON SYSTEMS ARCHITECTURE</span><span id="ver"></span></div><details><summary>App details</summary><div class="about-details"><p>One renderer serves your displays. Closing Studio leaves Silk running from the system tray.</p><span class="about-kicker">SETTINGS FOLDER</span><p id="cfgdir">…</p></div></details></footer>
+  </section>
+</div>
+
+<nav class="dock" aria-label="Sections">
+  <div class="dock-panel glass">
+    <button class="dock-item active" data-tab="library" aria-label="Library"><svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/><path d="m3 17.5 9 5 9-5" opacity=".55"/></svg><span class="dock-label">Library</span></button>
+    <button class="dock-item" data-tab="desktops" aria-label="Desktops"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8M12 17v4"/></svg><span class="dock-label">Desktops</span></button>
+    <button class="dock-item" data-tab="widgets" aria-label="Widgets"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/></svg><span class="dock-label">Widgets</span></button>
+    <button class="dock-item" data-tab="display" aria-label="Display"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2.5"/><path d="M8 21h8M12 17v4"/></svg><span class="dock-label">Display</span></button>
+    <button class="dock-item" data-tab="system" aria-label="System"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span class="dock-label">System</span></button>
+    <button class="dock-item" data-tab="about" aria-label="About"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.5v.01"/></svg><span class="dock-label">About</span></button>
+  </div>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="sheet glass" id="sheet" role="dialog" aria-modal="true" aria-label="Wallpaper settings" hidden>
+  <div class="sheet-bar"><span></span><span class="sheet-title" id="sTitle"></span><button class="nav-btn" id="sDone">Done</button></div>
+  <div class="sheet-body">
+    <div class="s-art" id="sArt"></div>
+    <div class="group glass-flat"><label class="field"><span>Name</span><input id="sName" aria-label="Wallpaper name"></label></div>
+    <p class="s-desc" id="sDesc"></p>
+    <div id="sForm"></div>
+    <div class="s-actions">
+      <button class="btn tinted block" id="sFavorite" aria-pressed="false">Add to favourites</button>
+      <button class="btn primary block" id="sApply">Apply</button>
+      <div class="s-row"><button class="btn tinted" id="sDup">Save as preset</button><button class="btn danger" id="sRemove">Remove</button></div>
+    </div>
+  </div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div id="drop" hidden><div class="drop-card glass"><img src="assets/echelon-bird.svg" alt=""><b>Drop to add</b><span>Videos, GIFs, images or a web wallpaper folder</span></div></div>
+<dialog id="discoverDialog" class="discover-dialog glass">
+ <button id="discoverClose" class="discover-close" aria-label="Close" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+ <div data-view="detail"><img id="discoverImage" class="discover-image" alt="Wallpaper preview"><div class="discover-dialog-body"><h2 id="discoverTitle"></h2><p id="discoverDetails" class="dim"></p><p id="discoverDescription"></p><p id="discoverTags" class="dim"></p><progress id="discoverProgress" max="100" value="0"></progress><p id="discoverTransfer" role="status"></p><div class="discover-actions"><button id="discoverDownload" class="btn tinted">Download</button><button id="discoverApply" class="btn primary">Download &amp; Apply</button><button id="discoverCancelDownload" class="btn tinted" hidden>Cancel</button><button id="discoverReport" class="btn small tinted">Report</button></div></div></div>
+ <div data-view="account" hidden class="discover-dialog-body account">
+  <h2>Creator account</h2>
+  <div id="accountSignedOut">
+   <p class="account-lead" id="accountLead">Sign in with your email to share wallpapers. No password: we email you a one-time code.</p>
+   <form id="accountEmailForm" class="account-step" novalidate><label>Email<input id="discoverEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><button id="discoverSendCode" class="btn primary" type="submit">Send code</button></form>
+   <form id="accountCodeForm" class="account-step" novalidate hidden><label>Code from your email<input id="discoverCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required></label>
+    <div class="discover-actions"><button id="discoverVerify" class="btn primary" type="submit">Sign in</button><button id="discoverResend" class="btn tinted" type="button">Resend code</button><button id="discoverChangeEmail" class="link-btn" type="button">Use a different email</button></div></form>
+  </div>
+  <p id="discoverAccountStatus" class="account-notice" role="status" aria-live="polite" hidden></p>
+  <div id="accountSignedIn" hidden>
+   <div class="account-card"><span class="account-avatar" id="accountAvatar" aria-hidden="true"></span><div class="account-who"><div class="title">Signed in</div><div class="sub" id="accountEmail"></div></div><button id="discoverSignOut" class="btn small tinted" type="button">Sign out</button></div>
+   <h3>Your submissions</h3><div id="discoverUploads"></div>
+  </div>
+ </div>
+ <div data-view="upload" hidden class="discover-dialog-body"><h2>Share a wallpaper</h2><label>GIF or video · up to 50 MB<input id="discoverFile" type="file" accept=".gif,.mp4,.webm"></label><label>Title<input id="discoverUploadTitle" type="text" maxlength="120"></label><label>Creator credit<input id="discoverCreator" type="text" maxlength="80"></label><label>Description<textarea id="discoverUploadDescription" maxlength="2000"></textarea></label><label>Tags, separated by commas<input id="discoverUploadTags" type="text" maxlength="240"></label><label class="discover-rights"><input id="discoverRights" type="checkbox">I have permission to share this wallpaper.</label><p id="discoverUploadStatus" role="status"></p><div class="discover-actions"><button id="discoverSubmit" class="btn primary">Submit for review</button><button id="discoverCancelUpload" class="btn tinted">Cancel upload</button></div></div>
+</dialog>
+<dialog id="keyboardHelp" class="keyboard-help"><form method="dialog"><button class="btn small tinted" aria-label="Close shortcuts">Close</button></form><h2>Keyboard shortcuts</h2><dl><dt>Alt + 1–6</dt><dd>Switch tabs</dd><dt>Ctrl + F / Ctrl + O</dt><dd>Search wallpapers / Add files</dd><dt>Ctrl + S</dt><dd>Save current workspace</dd><dt>Arrow keys · Home · End</dt><dd>Navigate wallpaper cards and dock</dd><dt>Enter / Space</dt><dd>Activate focused control or wallpaper</dd><dt>F2 on wallpaper</dt><dd>Open wallpaper settings</dd><dt>Escape</dt><dd>Close dialog or deselect widget</dd><dt>Delete</dt><dd>Remove selected widget</dd><dt>Ctrl + D</dt><dd>Duplicate selected widget</dd><dt>Ctrl + Z / Ctrl + Shift + Z / Ctrl + Y</dt><dd>Undo / redo widget changes</dd><dt>Arrows / Shift + Arrows</dt><dd>Move widget 1 / 10 pixels</dd><dt>?</dt><dd>Show this guide</dd></dl></dialog>
+<script type="module" src="studio/studio.js"></script>
+</body>
+</html>
