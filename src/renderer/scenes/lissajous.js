@@ -294,10 +294,12 @@ vec3 sand(float f, vec2 px, float width) {
 
 void main() {
   vec2 px = vUv * uRes, asp = vec2(uRes.x / uRes.y, 1.0);
-  vec2 jitter = uShake * vec2(hash(floor(vec2(uTime * 37.0))) - 0.5, hash(floor(vec2(uTime * 41.0)) + 3.0) - 0.5) * 0.015;
+  vec2 jitter = uShake * vec2(hash(floor(vec2(uTime * 37.0))) - 0.5, hash(floor(vec2(uTime * 41.0)) + 3.0) - 0.5) * vec2(0.0045, 0.015);              // beat jitter: barely any sideways shake
   vec2 p = ((vUv - 0.5) * 2.0 * asp) * uScale;                       // full-screen plate; pitch sets the scale
   // smooth warp: bends the existing lines (never adds new ones, so nothing overlaps)
-  p += uWarp * vec2(sin(p.y * 2.3 + uWarpPh) + 0.5 * sin(p.y * 4.1 - uWarpPh * 1.3), cos(p.x * 1.9 - uWarpPh * 0.8) + 0.5 * cos(p.x * 3.7 + uWarpPh));
+  // The sideways part is kept small (it read as an obnoxious left-right wobble at full strength);
+  // the vertical bending carries the morph.
+  p += uWarp * vec2(0.15 * (sin(p.y * 2.3 + uWarpPh) + 0.5 * sin(p.y * 4.1 - uWarpPh * 1.3)), cos(p.x * 1.9 - uWarpPh * 0.8) + 0.5 * cos(p.x * 3.7 + uWarpPh));
   p += jitter;
   vec3 flatSand = sand(plateField(p), px, uWidth);
   if (uSphere < 0.5) { o = vec4(flatSand * 0.9, 1.0); return; }

@@ -84,7 +84,7 @@ export const SCENES = {
       { key: 'mode', label: 'Mode', type: 'combo', value: 'cymatics', options: [['lissajous', 'Lissajous'], ['cymatics', 'Cymatics']] },
       { key: 'family', label: 'Shape', type: 'combo', value: 'silk', options: [['silk', 'Silk fold'], ['knot', 'Orbital knot'], ['bloom', 'Harmonic bloom'], ['veil', 'Ethereal veil'], ['cycle', 'Slowly cycle all']], when: ['mode', 'lissajous'] },
       pct('density', 'Strand density', 60, { when: ['mode', 'lissajous'] }),
-      { key: 'plate', label: 'Plate', type: 'combo', value: 'circle', options: [['square', 'Full screen'], ['circle', 'Sphere']], when: ['mode', 'cymatics'] },
+      { key: 'plate', label: 'Plate', type: 'combo', value: 'square', options: [['square', 'Full screen'], ['circle', 'Sphere']], when: ['mode', 'cymatics'] },
       pct('grain', 'Sand grain', 55, { when: ['mode', 'cymatics'] }),
       { key: 'palette', label: 'Colour', type: 'combo', value: 'blue', options: [['blue', 'Blue'], ['rgb', 'RGB (reacts to music)'], ['white', 'Pure white'], ['silver', 'Silver'], ['ice', 'Ice blue'], ['cobalt', 'Cobalt'], ['violet', 'Violet'], ['cherry', 'Cherry'], ['forest', 'Forest'], ['amber', 'Amber'], ['custom', 'Custom colour']] },
       { key: 'color', label: 'Custom colour', type: 'color', value: '#8fb6ff', when: ['palette', 'custom'] },

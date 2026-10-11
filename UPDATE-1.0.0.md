@@ -95,3 +95,15 @@
 - "Pause screens that are covered" and "Hibernate when every screen is covered" are now off by default (existing installs keep their current choice).
 - Living Silk no longer reacts to sound: its speed, glow and beat ripples are steady. The cursor still
   disturbs it.
+- CI fix: the "About has creator attribution, keyboard bird interaction" browser test was flaky (it
+  failed on the v1.0.0 tag run and passed on main for the same commit). Tab changes fade out and
+  swap pages ~140 ms later, and the bird only wakes up once About is the visible page; the test
+  focused the bird without waiting for that, so on a fast runner the Enter key went to a hidden
+  page. The test now waits for About to be visible. Reproduced by stretching the fade to 900 ms
+  (the test failed with the exact CI error), then verified passing under the same condition.
+  playwright.config.js also retries failed tests twice on CI, so a one-off hiccup on a noisy runner
+  shows up as "flaky" in the report instead of blocking a release.
+- Harmonics: the default plate is now Full screen (it was Sphere). The sideways part of the cymatics
+  warp is cut to ~1/7 (it swayed lines up to ~100 px left-right at 1080p on loud passages) and the
+  beat jitter is almost purely vertical; the vertical morph is unchanged. The card thumbnail is
+  re-rendered to match, and cached previews are refreshed (PREVIEW_VERSION p3).

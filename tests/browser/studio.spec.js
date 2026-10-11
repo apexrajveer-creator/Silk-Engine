@@ -64,6 +64,10 @@ test('Widget shortcuts work after layer selection and protect text fields',async
 test('About has creator attribution, keyboard bird interaction and no glass panels',async({page})=>{
  await page.goto('/index.html');await page.waitForFunction(()=>window.silkReady===true);
  await page.locator('[data-tab="about"]').click();
+ // Tab changes fade out and swap pages ~140 ms later; the bird only wakes up once About is the
+ // visible page. Wait for that, or on a fast machine focus() hits a still-hidden page and the Enter
+ // key goes nowhere (this was the flaky CI failure).
+ await expect(page.locator('#about')).toBeVisible();
  await expect(page.locator('.about-creator')).toContainText('Rajveer');
  await expect(page.locator('#about .glass')).toHaveCount(0);
  await page.locator('#aboutBird').focus();await page.keyboard.press('Enter');
