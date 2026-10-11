@@ -3,6 +3,8 @@
 //  * in a plain browser (dev / web demo) -> a mock backend in localStorage, with
 //    BroadcastChannel standing in for events so a Studio tab drives a renderer tab.
 
+import { ACTIONS, canonicalAccel, defaultBindings, effectiveBindings, parseAccel, resolve, resolveStrict } from './hotkeys.js';
+
 const T = window.__TAURI__;
 export const isApp = !!(T && T.core);
 
@@ -22,7 +24,16 @@ const chan = !isApp && 'BroadcastChannel' in window ? new BroadcastChannel('silk
 if (chan) chan.onmessage = e => fire(e.data.evt, e.data.payload);
 function broadcast(evt, payload) { fire(evt, payload); chan?.postMessage({ evt, payload }); }
 
-const BUILTINS = [['silk', 'Living Silk'], ['fluid', 'Fluid Ink'], ['lissajous', 'Harmonics'], ['particles', 'Flow Field']];
+// Hotkeys in the browser preview: nothing is really registered, but saving, validation and the statuses behave like the app.
+// One combination is pretended to belong to another app, so the "in use" state can be seen and tested.
+const MOCK_TAKEN = 'Ctrl+Alt+Shift+F12';
+function hotkeysDto() {
+  const hk = mockConfig().hotkeys || {}, enabled = hk.enabled !== false, bindings = effectiveBindings(hk.bindings), r = resolve(bindings);
+  const status = Object.fromEntries(ACTIONS.map(x => [x.id, !bindings[x.id] ? 'off' : r[x.id]?.error ? 'invalid' : !enabled ? 'disabled' : r[x.id].combo === MOCK_TAKEN ? 'inUse' : 'active']));
+  return { enabled, bindings, defaults: defaultBindings(), actions: ACTIONS, status };
+}
+
+const BUILTINS = [['silk', 'Living Silk'], ['fluid', 'Fluid Ink'], ['lissajous', 'Harmonics'], ['particles', 'Flow Field'], ['terrain', 'Spectral Terrain']];
 function mockConfig() {
   let c;
   try { c = JSON.parse(localStorage.getItem(KEY)); } catch (e) { }
@@ -67,6 +78,18 @@ const mock = {
   set_playlist({playlist}) {const c=mockConfig();c.playlist=playlist;this._save(c);},
   set_favorite({id,favorite}) {const c=mockConfig();c.favorites=(c.favorites||[]).filter(v=>v!==id);if(favorite)c.favorites.push(id);this._save(c);},
   set_widgets({ widgets }) { const c=mockConfig(); c.widgets=widgets; this._save(c); },
+  get_hotkeys() { return hotkeysDto(); },
+  set_hotkeys({ enabled, bindings }) {
+    const stored = {};
+    for (const [id, v] of Object.entries(bindings || {})) {
+      if (!ACTIONS.some(x => x.id === id)) throw Error('Unknown hotkey action');
+      const t = String(v).trim(); stored[id] = t ? canonicalAccel(parseAccel(t)) : '';
+    }
+    resolveStrict(effectiveBindings(stored));
+    const c = mockConfig(); c.hotkeys = { enabled: !!enabled, bindings: stored }; this._save(c);
+    return hotkeysDto();
+  },
+  hotkeys_suspend() { return hotkeysDto(); },
   widget_metrics() { return {cpu:null,ram:null,uptime:performance.now()/1000}; },
   set_display({ patch }) { const c = mockConfig(); for (const [k, v] of Object.entries(patch)) v === null ? delete c.display[k] : c.display[k] = v; this._save(c); },
   set_system({ system }) { const c = mockConfig(); const off = c.system?.themeSync && !system.themeSync; c.system = system; this._save(c); if (off) broadcast('accent-applied', null); else if (system.themeSync) broadcast('accent-request', null); },

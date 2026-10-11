@@ -38,12 +38,14 @@ liquid glass, large titles and a floating dock.
 - **Any wallpaper.** Video (MP4, WebM, MOV and more), animated images (GIF, WebP, APNG), still
   images, and web wallpapers (any folder with an `index.html`). Most unpacked Wallpaper Engine *web*
   wallpapers run as they are.
-- **Four built-in GPU wallpapers**, each with its own settings: Living Silk, Fluid Ink, Harmonics
-  and Flow Field. See [below](#built-in-wallpapers).
+- **Five built-in GPU wallpapers**, each with its own settings: Living Silk, Fluid Ink, Harmonics,
+  Flow Field and Spectral Terrain. See [below](#built-in-wallpapers).
 - **Reacts to your music.** System audio is captured with WASAPI loopback (what you hear) and
   analysed into 32 log-spaced bands plus a live waveform, so wallpapers can pulse, flow and morph
   with the sound.
 - **Reacts to your cursor** when it is over the desktop, with inertia and no snapping.
+- **Global hotkeys.** Change wallpaper, pause, toggle OLED mode and more from any app, even while Silk
+  Engine sits in the tray. Every shortcut is rebindable. See [Hotkeys](#hotkeys).
 - **Multi-monitor.** Each display can play something different, or one wallpaper can span them all.
 - **OLED mode.** Near-black shadows go to true `#000`, highlights get an emissive pop, and an
   optional burn-in guard gently shifts pixels on real OLED screens.
@@ -65,28 +67,34 @@ liquid glass, large titles and a floating dock.
 
 <table>
   <tr>
-    <td width="50%" valign="top">
+    <td width="33%" valign="top">
       <img src="src/assets/thumbs/silk.webp" alt="Living Silk" width="100%"><br>
       <b>Living Silk</b><br>
       <sub>The ECHELON silk shader: slow, glossy waves of cobalt cloth, with an optional Icarus drift tunnel and the silver bird.</sub>
     </td>
-    <td width="50%" valign="top">
+    <td width="33%" valign="top">
       <img src="src/assets/thumbs/fluid.webp" alt="Fluid Ink" width="100%"><br>
       <b>Fluid Ink</b><br>
       <sub>A real Navier–Stokes fluid. Ink follows your cursor, drifts on its own and bursts on the beat.</sub>
     </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
+    <td width="33%" valign="top">
       <img src="src/assets/thumbs/lissajous.webp" alt="Harmonics" width="100%"><br>
       <b>Harmonics</b><br>
       <sub>Music made visible, as cymatics: sand gathering along the vibrating lines of a plate or sphere. More below.</sub>
     </td>
-    <td width="50%" valign="top">
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
       <img src="src/assets/thumbs/particles.webp" alt="Flow Field" width="100%"><br>
       <b>Flow Field</b><br>
       <sub>Up to a million GPU particles riding curl noise, leaving 16-bit light trails.</sub>
     </td>
+    <td width="33%" valign="top">
+      <img src="src/assets/thumbs/terrain.webp" alt="Spectral Terrain" width="100%"><br>
+      <b>Spectral Terrain</b><br>
+      <sub>Your music as a ridgeline of hairlines, every row a moment of sound piling into mountains. More below.</sub>
+    </td>
+    <td width="33%"></td>
   </tr>
 </table>
 
@@ -122,6 +130,21 @@ Harmonics turns the sound you're playing into geometry, and it looks complete in
   white, silver, ice, cobalt, violet, cherry, forest, amber or any custom colour), motion, line
   weight, glow, trail, audio response, stars and nebula, halftone background and brightness.
 
+### Spectral Terrain
+
+<img src="docs/spectral-terrain.webp" alt="Spectral Terrain" width="100%">
+
+A ridgeline plot of what you're hearing, in the manner of a famous pulsar chart. Every row is a snapshot
+of the spectrum a moment ago; the rows slide back into the distance, and each one hides the rows behind
+it with a solid black fill, so loud passages pile up into mountains.
+
+- **Alive in silence.** With nothing playing it keeps producing pulsar-style bursts, so it is never a dead screen.
+- **Follows the music.** The spectrum decides where peaks appear and how tall they grow, and beats make
+  them jump. Lows sit in the middle (pulsar layout) or on the left (spectrum layout).
+- **Hairline sharp.** Lines are antialiased in the shader and drawn at your display's native resolution.
+- **Tunable.** Layout, colour, row count, scroll speed, peak height, roughness, audio response, width,
+  perspective, fade into the distance, peak highlight and line weight.
+
 ## The Studio
 
 <table>
@@ -138,6 +161,35 @@ Harmonics turns the sound you're playing into geometry, and it looks complete in
 **Keyboard.** `Alt+1`–`6` switch tabs · `Ctrl+F` search · `Ctrl+O` add files · `Ctrl+S` save the
 workspace · arrow keys move through cards and the dock · `F2` opens a wallpaper's settings ·
 `?` shows the full list.
+
+### Hotkeys
+
+These work from any app, even while Silk Engine is in the tray. Turn them off, or change any of them, in
+**System → Hotkeys**: click **Change**, then press the keys you want.
+
+| Action | Default | What it does |
+|---|---|---|
+| Next wallpaper | `Ctrl+Alt+Shift+→` | On every display |
+| Previous wallpaper | `Ctrl+Alt+Shift+←` | On every display |
+| Random wallpaper | `Ctrl+Alt+Shift+N` | A different one from your library |
+| Pause or resume | `Ctrl+Alt+Shift+Space` | Freeze the wallpaper |
+| Toggle OLED mode | `Ctrl+Alt+Shift+O` | True blacks on any screen |
+| Brighter | `Ctrl+Alt+Shift+↑` | Display brightness +5 |
+| Dimmer | `Ctrl+Alt+Shift+↓` | Display brightness -5 |
+| Cycle render quality | `Ctrl+Alt+Shift+Q` | Auto, Eco, Balanced, High, Ultra |
+| Toggle audio reactivity | `Ctrl+Alt+Shift+A` | React to system audio |
+| Toggle cursor reaction | `Ctrl+Alt+Shift+C` | React to the cursor on the desktop |
+| Open Silk Engine | `Ctrl+Alt+Shift+S` | Bring up the Studio |
+| Show or hide widgets | `Ctrl+Alt+Shift+W` | All desktop widgets |
+| Restart wallpaper | `Ctrl+Alt+Shift+R` | Reload the renderer |
+
+`Apply desktop 1–5` jump to your saved desktops and have no default shortcut.
+
+- **Safe by design.** A shortcut needs at least two of Ctrl, Alt, Shift and Win, so a hotkey can never take
+  over `Ctrl+C` or a plain letter, and combinations Windows reserves (such as `Ctrl+Alt+Delete`) are refused.
+- **Conflicts are shown.** If another app already owns a shortcut, it is marked **In use by another app**
+  instead of silently doing nothing.
+- On keyboards where `Ctrl+Alt` doubles as AltGr, a default may clash with typing some characters. Rebind it.
 
 ## Why it's light
 
@@ -254,19 +306,21 @@ src/                         frontend: no bundler, plain ES modules
   renderer.html, renderer/   the wallpaper renderer
     gl.js                    WebGL2 core and the display-resolution composite (OLED, bicubic, dither)
     main.js                  viewports, scheduler, input, hibernate, overlays, theme-sync sampling
-    scenes/                  silk, fluid, lissajous (Harmonics), particles, media
+    scenes/                  silk, fluid, lissajous (Harmonics), particles, terrain, media
   widgets/                   widget editor and the Rainmeter importer
   community/                 Discover gallery UI and client
   shared/
     catalog.js               every setting, defined once: the UI and the renderer both read it
     bridge.js                the Tauri API, or a mock backend in a plain browser
     web-shim.js              the runtime injected into web wallpapers
+    hotkeys.js               hotkey actions and shortcut rules (a tested mirror of hotkeys.rs)
 src-tauri/src/
   lib.rs                     commands, windows, tray, lifecycle
   desktop.rs                 attach behind the icons (classic and 24H2), monitors, WebView2 suspend
   watcher.rs                 covered-monitor detection, battery, cursor, layout, hibernation
   audio.rs                   WASAPI loopback, FFT, bands, waveform
   theme.rs                   Windows accent colour sync, with backup and restore
+  hotkeys.rs                 system-wide hotkeys: action table, shortcut rules, the registration thread
   protocol.rs                wp:// streaming file server, restricted to library items
   config.rs                  persistent library and settings
 backend/                     Supabase schema and setup for Discover
@@ -288,7 +342,7 @@ Rust tests.
 Things worth knowing:
 
 - Still to be verified on more hardware: mixed-DPI multi-monitor setups, the Windows 11 24H2
-  attach path, and sleep and resume on varied machines.
+  attach path, sleep and resume on varied machines, and global hotkeys inside exclusive-fullscreen games.
 - Theme sync writes the same per-user registry values that Windows Settings writes. They are stable
   but undocumented, so check it on your machine before relying on it.
 - Discover needs your own Supabase project; the shipped service config is empty. See
@@ -297,7 +351,9 @@ Things worth knowing:
 
 ## Credits
 
-Created by **Rajveer Raj**.
+Created by **Rajveer Raj**. The silver bird and the cobalt silk source were supplied by ECHELON.
+The silk shader descends from React Bits Silk and the Echelon Project Room / Icarus. The Harmonics
+wallpaper (cymatics and Lissajous strands) was written for this project.
 
 ## License
 

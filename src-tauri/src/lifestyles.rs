@@ -13,6 +13,20 @@ fn studio(window: &WebviewWindow) -> Result<(), String> {
         Err("Studio only".into())
     }
 }
+/// Make a saved desktop the current one (the Studio and the profile hotkeys both use this).
+pub fn apply_profile(c: &mut crate::config::Config, p: DesktopProfile) {
+    c.assign = p.assign;
+    c.span = p.span;
+    c.display = p.display;
+    c.widgets = p.widgets;
+    for i in &mut c.items {
+        if let Some(s) = p.settings.get(&i.id) {
+            i.settings = s.clone();
+        }
+    }
+    c.playlist.enabled = false;
+    c.ensure_builtins();
+}
 #[tauri::command]
 pub fn profile_action(
     app: AppHandle,
@@ -62,17 +76,7 @@ pub fn profile_action(
         "delete" => c.profiles.retain(|p| p.id != id),
         _ => {
             if let Some(p) = c.profiles.iter().find(|p| p.id == id).cloned() {
-                c.assign = p.assign;
-                c.span = p.span;
-                c.display = p.display;
-                c.widgets = p.widgets;
-                for i in &mut c.items {
-                    if let Some(s) = p.settings.get(&i.id) {
-                        i.settings = s.clone();
-                    }
-                }
-                c.playlist.enabled = false;
-                c.ensure_builtins();
+                apply_profile(c, p);
             }
         }
     })

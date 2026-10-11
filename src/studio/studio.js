@@ -15,6 +15,7 @@ import { simulationPreview } from './previews.js';
 import { lookFilter } from '../shared/preview-policy.js';
 import { cleanTitle } from '../shared/titles.js';
 import { installDropdowns } from './dropdown.js';
+import { hotkeysSection } from './hotkeys.js';
 installDropdowns();
 import { accentFrom } from '../shared/accent.js';
 
@@ -407,6 +408,7 @@ function pushSettings(id, k, v) {
 
 const desktopsUI = lifestyles({ bridge, flush: flushAll, notify: toast, state: () => st, art });
 maintenance({ bridge, flush: flushAll, notify: toast, state: () => st });
+const hotkeysUI = hotkeysSection({ bridge, notify: toast });
 
 // ------------------------------------------------------------------ Display & System pages
 // [title, keys, column, icon, resettable]
@@ -529,6 +531,7 @@ let fade = { phase: null, target: null, timer: 0 };
 function swapTab(tab) {
   if (tab === st.tab || !$(tab)) return;
   const old = $(st.tab), next = $(tab);
+  hotkeysUI.cancel();
   tabScroll.set(st.tab, scrollY);
   document.querySelectorAll('.wcard').forEach(c => c._stopPreview?.());
   widgetsUI.activate(false);
@@ -536,6 +539,7 @@ function swapTab(tab) {
   st.tab = tab;
   aboutUI.activate(tab === 'about');
   if (tab === 'display' || tab === 'system') renderPages();
+  if (tab === 'system') hotkeysUI.refresh();
   next.hidden = false;
   document.querySelectorAll('.dock-item').forEach(x => { const selected = x.dataset.tab === tab; x.classList.toggle('active', selected); x.setAttribute('aria-current', selected ? 'page' : 'false'); });
   $('compact').textContent = document.querySelector(`.dock-item[data-tab=${tab}]`).getAttribute('aria-label');

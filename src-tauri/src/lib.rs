@@ -11,6 +11,7 @@ mod audio;
 mod community;
 mod config;
 mod desktop;
+mod hotkeys;
 mod lifestyles;
 mod maintenance;
 mod metrics;
@@ -24,9 +25,10 @@ use maintenance::{diagnostics, export_settings, import_settings, reset_preferenc
 use config::{Config, Item, System};
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
@@ -349,20 +351,205 @@ fn restore_settings(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn next_wallpaper(app: &AppHandle) {
+/// Step through the library on every display. Entries whose file has gone missing are skipped.
+fn step_wallpaper(app: &AppHandle, dir: isize) {
     let _ = mutate(app, |c| {
-        if c.items.is_empty() {
+        let n = c.items.len() as isize;
+        if n == 0 {
             return;
         }
-        let current = c.assign.get("*");
-        let next = current
+        let start = c
+            .assign
+            .get("*")
             .and_then(|id| c.items.iter().position(|i| &i.id == id))
-            .map(|i| (i + 1) % c.items.len())
-            .unwrap_or(0);
-        let id = c.items[next].id.clone();
-        c.assign.clear();
-        c.assign.insert("*".into(), id);
+            .map(|i| i as isize)
+            .unwrap_or(if dir > 0 { -1 } else { 0 });
+        for step in 1..=n {
+            let item = &c.items[(start + dir * step).rem_euclid(n) as usize];
+            if item.path.as_ref().is_none_or(|p| std::path::Path::new(p).exists()) {
+                let id = item.id.clone();
+                c.assign.clear();
+                c.assign.insert("*".into(), id);
+                return;
+            }
+        }
     });
+}
+
+fn random_wallpaper(app: &AppHandle) {
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| (d.subsec_nanos() as usize) ^ (d.as_secs() as usize).rotate_left(7))
+        .unwrap_or(0);
+    let _ = mutate(app, |c| {
+        let current = c.assign.get("*").cloned();
+        let ids: Vec<String> = c
+            .items
+            .iter()
+            .filter(|i| Some(&i.id) != current.as_ref())
+            .filter(|i| i.path.as_ref().is_none_or(|p| std::path::Path::new(p).exists()))
+            .map(|i| i.id.clone())
+            .collect();
+        if ids.is_empty() {
+            return;
+        }
+        c.assign.clear();
+        c.assign.insert("*".into(), ids[seed % ids.len()].clone());
+    });
+}
+
+// ---------------------------------------------------------------- hotkeys
+
+fn flip_display(c: &mut Config, key: &str) {
+    if !c.display.is_object() {
+        c.display = Value::Object(Default::default());
+    }
+    let on = c.display.get(key).and_then(Value::as_bool).unwrap_or(false);
+    c.display[key] = Value::Bool(!on);
+}
+
+/// Everything a hotkey can do. Each action goes through `mutate` (like any setting change), so the Studio, the
+/// renderer and the tray all follow along, and the Studio is told which hotkey fired.
+fn run_action(app: &AppHandle, id: &str) {
+    match id {
+        "next" => step_wallpaper(app, 1),
+        "prev" => step_wallpaper(app, -1),
+        "random" => random_wallpaper(app),
+        "pause" => {
+            let paused = !app.state::<AppState>().cfg.lock().unwrap().paused;
+            let _ = mutate(app, |c| c.paused = paused);
+        }
+        "oled" => {
+            let _ = mutate(app, |c| flip_display(c, "oled"));
+        }
+        "brightUp" | "brightDown" => {
+            let delta = if id == "brightUp" { 5.0 } else { -5.0 };
+            let _ = mutate(app, |c| {
+                if !c.display.is_object() {
+                    c.display = Value::Object(Default::default());
+                }
+                let now = c.display.get("brightness").and_then(Value::as_f64).unwrap_or(100.0);
+                c.display["brightness"] = Value::from((now + delta).clamp(20.0, 150.0).round());
+            });
+        }
+        "quality" => {
+            const ORDER: [&str; 5] = ["auto", "eco", "balanced", "high", "ultra"];
+            let _ = mutate(app, |c| {
+                if !c.display.is_object() {
+                    c.display = Value::Object(Default::default());
+                }
+                let now = c.display.get("quality").and_then(Value::as_str).unwrap_or("auto").to_string();
+                let next = ORDER.iter().position(|q| *q == now).map(|i| (i + 1) % ORDER.len()).unwrap_or(0);
+                c.display["quality"] = Value::from(ORDER[next]);
+            });
+        }
+        "audio" => {
+            let _ = mutate(app, |c| c.system.audio = !c.system.audio);
+        }
+        "interactive" => {
+            let _ = mutate(app, |c| c.system.interactive = !c.system.interactive);
+        }
+        "widgets" => {
+            let _ = mutate(app, |c| {
+                if !c.widgets.is_object() {
+                    c.widgets = serde_json::json!({"enabled": true, "items": []});
+                }
+                let on = c.widgets.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+                c.widgets["enabled"] = Value::Bool(!on);
+            });
+        }
+        "studio" => {
+            let h = app.clone();
+            let _ = app.run_on_main_thread(move || open_studio(&h)); // windows are created on the main thread
+        }
+        "restart" => {
+            if let Err(e) = restart_renderer(app.clone()) {
+                let _ = app.emit("app-error", e);
+            }
+        }
+        other => {
+            if let Some(n) = other.strip_prefix("profile").and_then(|n| n.parse::<usize>().ok()) {
+                let _ = mutate(app, |c| {
+                    if let Some(p) = c.profiles.get(n.saturating_sub(1)).cloned() {
+                        lifestyles::apply_profile(c, p);
+                    }
+                });
+            }
+        }
+    }
+    let _ = app.emit("hotkey", id);
+}
+
+fn apply_hotkeys(app: &AppHandle) -> BTreeMap<String, hotkeys::Status> {
+    let cfg = app.state::<AppState>().cfg.lock().unwrap().hotkeys.clone();
+    app.state::<Arc<hotkeys::Service>>().apply(cfg.enabled, &hotkeys::effective(&cfg.bindings))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HotkeysDto {
+    enabled: bool,
+    bindings: BTreeMap<String, String>,
+    defaults: BTreeMap<String, String>,
+    actions: &'static [hotkeys::Action],
+    status: BTreeMap<String, hotkeys::Status>,
+}
+
+fn hotkeys_dto(app: &AppHandle) -> HotkeysDto {
+    let cfg = app.state::<AppState>().cfg.lock().unwrap().hotkeys.clone();
+    HotkeysDto {
+        enabled: cfg.enabled,
+        bindings: hotkeys::effective(&cfg.bindings),
+        defaults: hotkeys::defaults(),
+        actions: hotkeys::ACTIONS,
+        status: app.state::<Arc<hotkeys::Service>>().status(),
+    }
+}
+
+fn studio_only(window: &tauri::WebviewWindow) -> Result<(), String> {
+    if window.label() == "studio" { Ok(()) } else { Err("Studio only".into()) }
+}
+
+#[tauri::command]
+fn get_hotkeys(app: AppHandle, window: tauri::WebviewWindow) -> Result<HotkeysDto, String> {
+    studio_only(&window)?;
+    Ok(hotkeys_dto(&app))
+}
+
+/// Save the full set of shortcuts. Anything the safety policy refuses, or that two actions share, is rejected
+/// with an explanation and nothing is changed.
+#[tauri::command]
+fn set_hotkeys(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    enabled: bool,
+    bindings: BTreeMap<String, String>,
+) -> Result<HotkeysDto, String> {
+    studio_only(&window)?;
+    let mut stored = BTreeMap::new();
+    for (id, v) in bindings {
+        if hotkeys::action(&id).is_none() {
+            return Err("Unknown hotkey action".into());
+        }
+        let v = v.trim().to_string();
+        let v = if v.is_empty() { v } else { hotkeys::canonical(&hotkeys::parse(&v)?) };
+        stored.insert(id, v);
+    }
+    hotkeys::resolve_strict(&hotkeys::effective(&stored))?;
+    mutate(&app, |c| {
+        c.hotkeys.enabled = enabled;
+        c.hotkeys.bindings = stored;
+    })?;
+    apply_hotkeys(&app);
+    Ok(hotkeys_dto(&app))
+}
+
+/// The Studio pauses all hotkeys while it records a new one, so the current shortcuts don't eat the key presses.
+#[tauri::command]
+fn hotkeys_suspend(app: AppHandle, window: tauri::WebviewWindow, suspended: bool) -> Result<HotkeysDto, String> {
+    studio_only(&window)?;
+    app.state::<Arc<hotkeys::Service>>().suspend(suspended);
+    Ok(hotkeys_dto(&app))
 }
 
 // ---------------------------------------------------------------- windows
@@ -489,6 +676,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             apply_accent,
+            get_hotkeys,
+            set_hotkeys,
+            hotkeys_suspend,
             lifestyles::profile_action,
             lifestyles::set_playlist,
             lifestyles::set_favorite,
@@ -538,6 +728,12 @@ pub fn run() {
             });
 
             let handle = app.handle().clone();
+            let service = hotkeys::Service::start({
+                let h = handle.clone();
+                move |id| run_action(&h, id)
+            });
+            app.manage(service);
+            apply_hotkeys(&handle);
             let studio = MenuItem::with_id(app, "studio", "Open Studio", true, None::<&str>)?;
             let pause = MenuItem::with_id(app, "pause", "Pause wallpaper", true, None::<&str>)?;
             let next = MenuItem::with_id(
@@ -569,7 +765,7 @@ pub fn run() {
                         let p = !app.state::<AppState>().cfg.lock().unwrap().paused;
                         let _ = mutate(app, |c| c.paused = p);
                     }
-                    "next" => next_wallpaper(app),
+                    "next" => step_wallpaper(app, 1),
                     "restart" => {
                         if let Err(e) = restart_renderer(app.clone()) {
                             let _ = app.emit("app-error", e);
@@ -618,6 +814,15 @@ pub fn run() {
         RunEvent::ExitRequested { api, code, .. } => {
             if code.is_none() && !app.state::<AppState>().quitting.load(Ordering::Relaxed) {
                 api.prevent_exit();
+            }
+        }
+        RunEvent::WindowEvent {
+            label,
+            event: WindowEvent::Destroyed,
+            ..
+        } if label == "studio" => {
+            if let Some(s) = app.try_state::<Arc<hotkeys::Service>>() {
+                s.suspend(false);
             }
         }
         RunEvent::WindowEvent {

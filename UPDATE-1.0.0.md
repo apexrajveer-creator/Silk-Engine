@@ -103,7 +103,45 @@
   (the test failed with the exact CI error), then verified passing under the same condition.
   playwright.config.js also retries failed tests twice on CI, so a one-off hiccup on a noisy runner
   shows up as "flaky" in the report instead of blocking a release.
-- Harmonics: the default plate is now Full screen (it was Sphere). The sideways part of the cymatics
+- Harmonics: the default plate is Sphere (Full screen is one click away in the Plate setting). The sideways part of the cymatics
   warp is cut to ~1/7 (it swayed lines up to ~100 px left-right at 1080p on loud passages) and the
-  beat jitter is almost purely vertical; the vertical morph is unchanged. The card thumbnail is
-  re-rendered to match, and cached previews are refreshed (PREVIEW_VERSION p3).
+  beat jitter is almost purely vertical; the vertical morph is unchanged. The card thumbnail matches
+  the default, and cached previews are refreshed (PREVIEW_VERSION p4).
+- README rewritten for 1.0.0: new header and screenshots (rendered from the real app), the four
+  built-in wallpapers (Reaction-Diffusion is gone; Harmonics is documented), the Studio tour, install
+  and build instructions with the correct 1.0.0 file names, tests, releases, the web wallpaper API,
+  project layout and an honest status section. The old docs/*.png images (they showed retired
+  scenes and the old interface) are replaced by docs/*.webp.
+- The installers now carry the app's identity. Tauri's setup program and MSI do not use the app icon
+  by themselves, so tauri.conf.json now sets: `installerIcon` and `uninstallerIcon` (the cobalt-and-bird
+  icon.ico), a branded header and sidebar for the setup wizard (`headerImage`, `uninstallerHeaderImage`,
+  `sidebarImage`), and a banner and dialog image for the MSI (`bannerPath`, `dialogImagePath`). The four
+  BMPs live in src-tauri/installer/ (150x57, 164x314, 493x58, 493x312). `npm run verify` now checks that
+  they exist and have exactly those sizes, so a bad image fails the quick check instead of the end of a
+  long release build.
+- Installer images reworked. The MSI banner decoration is now a narrow 54 px tile at the far right
+  (it was 150 px wide and the page description, up to ~370 px long, ran across it). The MSI images are
+  supplied at 2x (986x58*2 and 986x624) with identical proportions, which Windows scales to the dialog,
+  so they stay sharp at 100%, 125% and 200% display scaling; the setup-wizard images keep their exact
+  fixed sizes (150x57 and 164x314). Everything is drawn at 4x and downsampled for smooth text. The
+  sidebar and welcome panel now read: SILK ENGINE / BY RAJVEER RAJ / AN ECHELON PRODUCT.
+  `npm run verify` enforces the sizes (exact for the wizard, whole multiples for the MSI).
+- New wallpaper: Spectral Terrain, a ridgeline plot of the music in the manner of a famous pulsar chart.
+  Every row is a moment of the spectrum; rows slide back and each hides the ones behind it with a black
+  fill. Hairline antialiased lines at native resolution, a pulsar layout (lows in the middle) or a
+  spectrum layout, and it keeps producing pulsar-style bursts in silence. Settings: layout, colour,
+  rows, scroll speed, peak height, roughness, audio response, width, perspective, fade into the
+  distance, peak highlight and line weight. It is the fifth built-in and existing libraries get it on
+  first launch. The simulation cards now always share one row.
+- New: global hotkeys, system-wide and working with Silk Engine in the tray. Next, previous and random
+  wallpaper, pause, OLED, brightness, render quality, audio and cursor reactions, open the Studio,
+  widgets, restart and apply desktops 1-5. Defaults are Ctrl+Alt+Shift plus a key; all are rebindable in
+  System -> Hotkeys, where a shortcut is recorded by pressing it. A shortcut must use at least two of
+  Ctrl, Alt, Shift and Win (so Ctrl+C can never be taken over), Windows-reserved combinations are
+  refused, duplicates are caught and named, and a shortcut another app already owns shows "In use by
+  another app" instead of failing silently. While recording, the live hotkeys pause; they resume by
+  themselves after 30 s or when the Studio closes. Registration runs on its own Windows thread
+  (src-tauri/src/hotkeys.rs); the Studio's copy of the rules is checked against it by a test.
+- Fixed: the renderer stress script still referenced the retired Reaction-Diffusion wallpaper.
+- Tests: 69 unit tests (10 new for hotkeys, Rust parity and the terrain), 12 browser tests (2 new), and
+  Rust tests for shortcut parsing, the safety rules, defaults, config compatibility and the new built-in.

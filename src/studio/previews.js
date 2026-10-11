@@ -12,11 +12,12 @@ import Silk from '../renderer/scenes/silk.js';
 import Fluid from '../renderer/scenes/fluid.js';
 import Lissajous from '../renderer/scenes/lissajous.js';
 import Particles from '../renderer/scenes/particles.js';
+import Terrain from '../renderer/scenes/terrain.js';
 import { defaults, schemaFor } from '../shared/catalog.js';
 import { PREVIEW_MAX_WIDTH as MAX_WIDTH, HERO_MAX_WIDTH, previewKey, sceneSettings as sceneKeys, usesBundledRender } from '../shared/preview-policy.js';
 
-const classes = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles };
-const STEPS = { silk: 1, fluid: 12, lissajous: 40, particles: 18 };
+const classes = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles, terrain: Terrain };
+const STEPS = { silk: 1, fluid: 12, lissajous: 40, particles: 18, terrain: 2 };
 const MEMORY = 24;                // Blob cache entries (~40 KB each)
 const blobs = new Map(), pending = new Map(), latest = new Map();
 let queue = Promise.resolve(), canvas = null, g = null, idle = 0, dbp = null;

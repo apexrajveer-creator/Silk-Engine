@@ -18,7 +18,7 @@ try {
   const loops = () => page.evaluate(() => new Promise(r => { let n = 0; const orig = window.requestAnimationFrame; let calls = 0; window.requestAnimationFrame = f => { calls++; return orig(f); }; setTimeout(() => { window.requestAnimationFrame = orig; r(calls); }, 1000); }));
   const base = await snap();
   const baseLoops = await loops();
-  const scenes = ['builtin-silk', 'builtin-fluid', 'builtin-reaction', 'builtin-particles'];
+  const scenes = ['builtin-silk', 'builtin-fluid', 'builtin-lissajous', 'builtin-particles', 'builtin-terrain'];
   await page.evaluate(async list => {
     const { bridge } = await import('/shared/bridge.js');
     for (let i = 0; i < 48; i++) { await bridge.invoke('assign', { monitor: '*', itemId: list[i % list.length] }); await new Promise(r => setTimeout(r, 40)); }

@@ -1,7 +1,7 @@
 // What a simulation preview depends on. Pure, so it is unit-tested (tests/previews.test.cjs).
 import { defaults, schemaFor } from './catalog.js';
 
-export const PREVIEW_VERSION = 'p3';
+export const PREVIEW_VERSION = 'p4';
 export const PREVIEW_MAX_WIDTH = 960;   // a card never needs more; keeps every simulation step cheap
 export const HERO_MAX_WIDTH = 2560;     // the full-width Library hero renders at its real size
 

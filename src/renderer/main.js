@@ -8,10 +8,11 @@ import Silk from './scenes/silk.js';
 import Fluid from './scenes/fluid.js';
 import Lissajous from './scenes/lissajous.js';
 import Particles from './scenes/particles.js';
+import Terrain from './scenes/terrain.js';
 import Media from './scenes/media.js';
 import { accentFrom } from '../shared/accent.js';
 
-const SCENE_CLASSES = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles };
+const SCENE_CLASSES = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles, terrain: Terrain };
 // Display-buffer caps per monitor. Smooth simulations don't need a native 4K buffer; video does.
 const QUALITY = { eco: { out: 1.0e6, media: 2.1e6 }, balanced: { out: 2.1e6, media: 3.7e6 }, high: { out: 3.7e6, media: 8.4e6 }, ultra: { out: Infinity, media: Infinity } };
 const AUTO = ['eco', 'balanced', 'high'];

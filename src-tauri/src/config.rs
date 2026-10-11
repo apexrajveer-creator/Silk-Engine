@@ -66,6 +66,21 @@ impl Default for System {
     }
 }
 
+/// System-wide hotkeys (see hotkeys.rs). `bindings` holds only what the user chose: an action that is
+/// missing keeps its default, and "" means deliberately unbound.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Hotkeys {
+    pub enabled: bool,
+    pub bindings: std::collections::BTreeMap<String, String>,
+}
+
+impl Default for Hotkeys {
+    fn default() -> Self {
+        Hotkeys { enabled: true, bindings: Default::default() }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Config {
@@ -81,6 +96,7 @@ pub struct Config {
     pub profiles: Vec<DesktopProfile>,
     pub playlist: Playlist,
     pub favorites: Vec<String>,
+    pub hotkeys: Hotkeys,
     /// The user's own accent colour, captured before theme sync first changed it.
     pub accent_backup: Option<crate::theme::AccentBackup>,
 }
@@ -101,6 +117,7 @@ impl Default for Config {
             profiles: Vec::new(),
             playlist: Playlist::default(),
             favorites: Vec::new(),
+            hotkeys: Hotkeys::default(),
             accent_backup: None,
         }
     }
@@ -143,6 +160,7 @@ const BUILTINS: &[(&str, &str)] = &[
     ("fluid", "Fluid Ink"),
     ("lissajous", "Harmonics"),
     ("particles", "Flow Field"),
+    ("terrain", "Spectral Terrain"),
 ];
 
 impl Config {
@@ -279,6 +297,11 @@ pub fn validate(cfg: &Config) -> Result<(), String> {
             .any(|id| id.is_empty() || id.len() > 160)
     {
         return Err("Invalid profile or playlist limits".into());
+    }
+    if cfg.hotkeys.bindings.len() > 64
+        || cfg.hotkeys.bindings.iter().any(|(k, v)| k.len() > 64 || v.len() > 64)
+    {
+        return Err("Invalid hotkey settings".into());
     }
     let mut profile_ids = std::collections::HashSet::new();
     for p in &cfg.profiles {
@@ -542,7 +565,7 @@ mod persistence_tests {
         std::fs::write(file_path(&dir), b"broken json").unwrap();
         let recovered = load(&dir);
         assert!(!recovered.paused);
-        assert_eq!(recovered.items.len(), 4);
+        assert_eq!(recovered.items.len(), BUILTINS.len());
         std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
@@ -579,6 +602,37 @@ mod migration_tests {
         assert!(!c.playlist.enabled);
         assert_eq!(c.playlist.interval, 300);
         assert!(validate(&c).is_ok());
+    }
+    #[test]
+    fn old_settings_get_hotkeys_on_with_every_default() {
+        let c: Config = serde_json::from_str(r#"{"version":1,"items":[],"assign":{}}"#).unwrap();
+        assert!(c.hotkeys.enabled);
+        assert!(c.hotkeys.bindings.is_empty());
+        assert_eq!(crate::hotkeys::effective(&c.hotkeys.bindings)["next"], "Ctrl+Alt+Shift+Right");
+        assert!(validate(&c).is_ok());
+    }
+    #[test]
+    fn a_bad_shortcut_is_reported_per_action_not_by_refusing_the_config() {
+        let mut c = Config::default();
+        c.hotkeys.bindings.insert("next".into(), "not a shortcut".into());
+        assert!(validate(&c).is_ok());
+        for i in 0..70 {
+            c.hotkeys.bindings.insert(format!("x{i}"), "A".into());
+        }
+        assert!(validate(&c).is_err(), "oversized hotkey settings are refused");
+    }
+    #[test]
+    fn terrain_is_a_builtin_and_appears_for_existing_libraries() {
+        let mut c = Config::default();
+        c.ensure_builtins();
+        assert!(c.item("builtin-terrain").is_some());
+        let mut old = Config::default();
+        old.items.clear();
+        old.ensure_builtins();
+        old.items.retain(|i| i.id != "builtin-terrain");
+        old.ensure_builtins(); // an install from before Spectral Terrain existed gets it on first launch
+        assert!(old.item("builtin-terrain").is_some());
+        assert!(validate(&old).is_ok());
     }
     #[test]
     fn reject_tight_intervals_and_duplicate_profiles() {

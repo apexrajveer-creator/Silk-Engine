@@ -133,3 +133,59 @@ test('Cinematic hero shows the Displays block only with more than one screen',as
  expect(await page.evaluate(()=>document.getElementById('displaysBlock').hidden)).toBe(false);
  await expect(page.locator('#map .mon')).toHaveCount(2);
 });
+
+test('Hotkeys: record, refuse unsafe and duplicate shortcuts, flag one another app owns, clear, switch off and reset', async ({ page }) => {
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  await page.locator('[data-tab="system"]').click();
+  await expect(page.locator('#system')).toBeVisible();   // tab changes fade out and swap, so wait for the page itself
+  const row = id => page.locator(`.hk-row[data-id="${id}"]`);
+  const press = async (mods, key) => { for (const m of mods) await page.keyboard.down(m); await page.keyboard.press(key); for (const m of [...mods].reverse()) await page.keyboard.up(m); };
+  await expect(page.locator('.hk-row')).toHaveCount(18);
+  await expect(row('next').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', '→']);
+  await expect(row('profile1').locator('.hk-none')).toBeVisible();
+
+  // record a shortcut; the preview pretends another app already owns Ctrl+Alt+Shift+F12
+  await row('next').getByRole('button', { name: 'Change shortcut for Next wallpaper' }).click();
+  await expect(row('next')).toHaveClass(/capturing/);
+  await press(['Control', 'Alt', 'Shift'], 'F12');
+  await expect(row('next').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', 'F12']);
+  await expect(row('next')).toHaveAttribute('data-status', 'inUse');
+  await expect(page.locator('#hotkeysNote')).toContainText('in use by another app');
+
+  // one modifier is refused and recording carries on; a duplicate names the other action
+  await row('prev').getByRole('button', { name: 'Change shortcut for Previous wallpaper' }).click();
+  await press(['Control'], 'KeyC');
+  await expect(row('prev').locator('small')).toContainText('at least two');
+  await expect(row('prev')).toHaveClass(/capturing/);
+  await press(['Control', 'Alt', 'Shift'], 'KeyN');
+  await expect(row('prev').locator('small')).toContainText('Random wallpaper');
+  await page.keyboard.press('Escape');                   // cancel keeps the old shortcut
+  await expect(row('prev')).not.toHaveClass(/capturing/);
+  await expect(row('prev').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', '←']);
+
+  // clear, switch everything off, then reset
+  await row('prev').getByRole('button', { name: 'Clear shortcut for Previous wallpaper' }).click();
+  await expect(row('prev').locator('.hk-none')).toBeVisible();
+  await page.locator('#hotkeysEnabled').click();
+  await expect(row('pause')).toHaveAttribute('data-status', 'disabled');
+  await page.locator('#hotkeysEnabled').click();
+  await page.locator('#hotkeysReset').click();
+  await expect(row('prev').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', '←']);
+  await expect(row('next').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', '→']);
+  await expect(row('next')).toHaveAttribute('data-status', 'active');
+});
+
+test('Spectral Terrain is the fifth built-in, shares one row with the others and can be played', async ({ page }) => {
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  const cards = page.locator('#scenes .wcard');
+  await expect(cards).toHaveCount(5);
+  await expect(cards.nth(4)).toContainText('Spectral Terrain');
+  // offsetTop is layout position: the cards' entrance animation moves them on screen for a moment, which would not mean a second row
+  const tops = await cards.evaluateAll(els => els.map(e => e.offsetTop));
+  expect(new Set(tops).size, 'all five cards on one row').toBe(1);
+  await cards.nth(4).click();
+  await expect(page.locator('#heroName')).toHaveText('Spectral Terrain');
+  await expect(page.locator('#heroSub')).toContainText('Rendered live');
+  await page.locator('#heroPrev').click();
+  await expect(page.locator('#heroName')).toHaveText('Flow Field');
+});
