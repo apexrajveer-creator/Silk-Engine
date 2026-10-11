@@ -297,9 +297,7 @@ Things worth knowing:
 
 ## Credits
 
-Created by **Rajveer Raj**. The silver bird and the cobalt silk source were supplied by ECHELON.
-The silk shader descends from React Bits Silk and the Echelon Project Room / Icarus. The Harmonics
-wallpaper (cymatics and Lissajous strands) was written for this project.
+Created by **Rajveer Raj**.
 
 ## License
 
