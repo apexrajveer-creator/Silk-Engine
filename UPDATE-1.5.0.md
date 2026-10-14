@@ -63,3 +63,10 @@ All 509 Node tests pass. The supplied screenshot paths were unavailable; Windows
 ## Island app mixer extension
 
 See AUDIO-MIXER.md for the new speaker-button drawer, per-app volume, output selection, player artwork activation, validation and Windows checks. The full Node suite now passes 519 tests. The source ZIP retains all prior v1.5 polish. Native Windows integration is pending live verification.
+
+
+## Final package
+
+Includes the updated README documenting Echelon Dock and Circle to Search, the corrected Windows 0.62.2 PROPERTYKEY import, and measured mixer expansion/retraction with deferred cleanup, reduced-motion support and coalesced content-size updates. Repeated mixer polls avoid rewriting unchanged labels and slider values.
+
+Validation: 527 Node tests pass. 52 frontend JavaScript files pass syntax/import checks; HTML references, release version and ZIP integrity are checked. The 92 browser tests are discoverable but unexecuted. The css-tree-based full verifier remains blocked by the missing dependency in this environment. Windows build and live audio/visual verification remain required.

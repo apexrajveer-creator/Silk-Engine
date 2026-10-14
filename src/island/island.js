@@ -2,6 +2,7 @@
 //   hidden -> peek (a small bar) -> open (the panel with six tabs). Esc, clicking away, or the cursor leaving closes it.
 // Everything shown that comes from outside (clipboard text, app names, wallpaper titles) is set with textContent, never as HTML.
 import { bindSurfaceTheme } from '../shared/surface-theme.js';
+import { createDrawerMotion } from './drawer.js';
 import { batteryDisplay, visualizerLevels } from './compact.js';
 import { bridge } from '../shared/bridge.js';
 import { SCENES } from '../shared/catalog.js';
@@ -404,12 +405,13 @@ function quickView() {
   let mixerOpen = false, outputOpen = false, outputBusy = false, mixerRevision = 0, mixerScrollTimer = 0, deviceSignature = '', lastDevices = [], mixerErrorUntil = 0, mixerErrorText = '';
   function mixerError(error) { mixerErrorUntil = performance.now() + 3500; mixerErrorText = errText(error); if (quickActive && mixerOpen) { mixerStatus.hidden = false; mixerStatus.textContent = mixerErrorText; } }
   const mixerRows = new Map();
-  const mixing = () => [...mixerRows.values()].some(r => r.editing || r.timer || r.writer.busy);
+  const mixing = () => { for (const r of mixerRows.values()) if (r.editing || r.timer || r.writer.busy) return true; return false; };
+  const text = (node, value) => { const next = String(value ?? ''); if (node.textContent !== next) node.textContent = next; };
   function paintOutputs(devices) {
     lastDevices = devices;
     const signature = JSON.stringify(devices); const blocked = outputBusy || mixing();
     const current = devices.find(d => d.default);
-    outputButton.textContent = outputBusy ? 'Switching…' : current?.name || 'Choose output';
+    text(outputButton, outputBusy ? 'Switching…' : current?.name || 'Choose output');
     outputButton.disabled = blocked || !devices.length;
     if (signature !== deviceSignature) {
       deviceSignature = signature; const focused = outputList.contains(document.activeElement) ? document.activeElement?.dataset.device : null;
@@ -422,7 +424,8 @@ function quickView() {
     }
     for (const button of outputList.children) button.disabled = blocked;
   }
-  function setOutputOpen(open) { outputOpen = open; outputList.hidden = !open; outputButton.setAttribute('aria-expanded', String(open)); }
+  const mixerMotion = createDrawerMotion(mixer, mixerBody, { onCollapsed: () => setOutputOpen(false) });
+  function setOutputOpen(open) { outputOpen = open; outputList.hidden = !open; outputButton.setAttribute('aria-expanded', String(open)); mixerMotion.refresh(); }
   outputButton.addEventListener('click', () => setOutputOpen(!outputOpen));
   outputList.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation?.(); setOutputOpen(false); outputButton.focus(); } });
   async function switchOutput(deviceId) {
@@ -439,7 +442,7 @@ function quickView() {
     const bar = h('div', 'mixer-app-bar'), input = h('input'); input.type = 'range'; input.min = 0; input.max = 100; input.step = 1;
     const out = h('output'); bar.append(input, out); row.append(label, bar);
     const r = { el: row, name, device, slider: input, out, editing: false, timer: 0, confirmed: app.volume, failed: false };
-    const draw = value => { input.value = Math.round(Math.max(0, Math.min(1, value)) * 100); input.style.setProperty('--p', `${input.value}%`); out.textContent = `${input.value}%`; };
+    const draw = value => { const next = String(Math.round(Math.max(0, Math.min(1, value)) * 100)); if (String(input.value) !== next) { input.value = next; input.style.setProperty('--p', `${next}%`); } text(out, `${next}%`); };
     r.draw = draw;
     r.writer = createLatestWriter(async volume => {
       await bridge.invoke('mixer_volume', { deviceId: app.deviceId, appId: app.appId, volume }); r.confirmed = volume; r.failed = false;
@@ -463,29 +466,30 @@ function quickView() {
       const key = JSON.stringify([app.deviceId, app.appId]); keys.add(key);
       let row = mixerRows.get(key);
       if (!row) { row = makeMixerRow(app, key); mixerRows.set(key, row); appList.append(row.el); }
-      row.name.textContent = app.name; row.device.textContent = app.deviceName; row.device.hidden = lastDevices.length <= 1;
+      text(row.name, app.name); text(row.device, app.deviceName); row.device.hidden = lastDevices.length <= 1;
       row.slider.setAttribute('aria-label', `${app.name} volume${lastDevices.length > 1 ? ` on ${app.deviceName}` : ''}`);
-      if (!row.editing && !row.timer && !row.writer.busy) { row.confirmed = app.volume; row.draw(app.volume); row.out.textContent = app.muted ? 'Muted' : `${row.slider.value}%`; }
+      if (!row.editing && !row.timer && !row.writer.busy) { row.confirmed = app.volume; row.draw(app.volume); text(row.out, app.muted ? 'Muted' : `${row.slider.value}%`); }
     }
     for (const [key, row] of mixerRows) if (!keys.has(key) && !row.editing && !row.timer && !row.writer.busy) {
       if (row.el.contains(document.activeElement)) mixerToggle.focus(); row.el.remove(); mixerRows.delete(key);
     }
+    mixerMotion.refresh();
     mixerStatus.hidden = mixerRows.size > 0 && performance.now() >= mixerErrorUntil; mixerStatus.textContent = performance.now() < mixerErrorUntil ? mixerErrorText : lastDevices.length ? 'Apps appear here when they use audio.' : 'No audio output connected.';
   }
   const mixerPoll = createPoller(async () => { const revision = mixerRevision; return { state: await bridge.invoke('mixer_state'), revision }; }, result => {
     if (result.revision === mixerRevision && result.state) paintMixer(result.state);
   }, 2000, { onError: error => { mixerError(error) } });
-  function closeMixer() {
+  function closeMixer(immediate = false) {
     mixerOpen = false; mixerPoll.stop(); clearTimeout(mixerScrollTimer); mixerScrollTimer = 0;
     for (const row of mixerRows.values()) row.end();
     if (mixer.contains(document.activeElement)) mixerToggle.focus();
-    mixer.dataset.open = 'false'; mixer.inert = true; mixer.setAttribute('aria-hidden', 'true'); mixerToggle.setAttribute('aria-expanded', 'false'); setOutputOpen(false);
+    mixer.inert = true; mixer.setAttribute('aria-hidden', 'true'); mixerToggle.setAttribute('aria-expanded', 'false'); mixerMotion.setOpen(false, { immediate });
   }
   mixerToggle.addEventListener('click', () => {
     if (mixerOpen) { closeMixer(); return; }
-    mixerOpen = true; mixer.dataset.open = 'true'; mixer.inert = false; mixer.setAttribute('aria-hidden', 'false'); mixerToggle.setAttribute('aria-expanded', 'true');
-    mixerPoll.start();
-    mixerScrollTimer = setTimeout(() => { mixerScrollTimer = 0; if (quickActive && mixerOpen) mixer.scrollIntoView?.({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); }, 200);
+    mixerOpen = true; mixer.inert = false; mixer.setAttribute('aria-hidden', 'false'); mixerToggle.setAttribute('aria-expanded', 'true');
+    mixerMotion.setOpen(true); mixerPoll.start();
+    mixerScrollTimer = setTimeout(() => { mixerScrollTimer = 0; if (quickActive && mixerOpen) mixer.scrollIntoView?.({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); }, 260);
   });
   const chips = h('div', 'chips');
   for (const [page, label] of [['network', 'Network'], ['bluetooth', 'Bluetooth'], ['sound', 'Sound'], ['display', 'Display']]) {
@@ -580,10 +584,11 @@ function quickView() {
   listen('state', c => { ++quickRevision; quickPoll.invalidate(); S.cfg = c; paintIslandAppearance(c); if (active('quick')) paint(); });
   let clockTimer = 0;
   return {
-    el, settleMotion: clearSongTransition,
+    el, settleMotion() { clearSongTransition(); mixerMotion.settle(); },
+    dispose() { closeMixer(true); mixerMotion.dispose(); },
     enter() { quickActive = true; quickPoll.start(); mediaPoll.start(); artworkPoll.start(); paintMedia(); clockTimer = setInterval(paintClock, 250); },
     leave() {
-      quickActive = false; closeMixer(); clearSongTransition(); quickPoll.stop(); mediaPoll.stop(); artworkPoll.stop(); dragging = false;
+      quickActive = false; closeMixer(true); clearSongTransition(); quickPoll.stop(); mediaPoll.stop(); artworkPoll.stop(); dragging = false;
       clearInterval(clockTimer); clearTimeout(mediaFollowup); endVolume();
     },
   };

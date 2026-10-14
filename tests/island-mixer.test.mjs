@@ -48,3 +48,8 @@ test('a late mixer response cannot populate a closed drawer',async t=>{
 test('a successful media click hides the Island without toggling the player',async t=>{
  const h=harness();t.after(()=>h.cleanup());h.answer('media_state',{active:true,app:'Spotify',sourceId:'Spotify.exe',thumbId:'track',title:'Track',status:'playing'});h.open();await h.advance(100);h.node('view-quick').querySelector('.art').click();await h.advance(300);assert.equal(h.S.state,'hidden');assert.equal(h.calls.filter(c=>c.name==='media_control').length,0);
 });
+test('output choices remain intact through collapse and rapid reopen',async t=>{
+ const h=await setup(t),view=h.node('view-quick'),toggle=view.querySelector('.mixer-toggle');toggle.click();await h.advance(10);view.querySelector('.output-button').click();assert.equal(h.node('audioOutputs').hidden,false);
+ toggle.click();assert.equal(h.node('audioMixer').inert,true);assert.equal(h.node('audioOutputs').hidden,false);await h.advance(100);toggle.click();await h.advance(300);assert.equal(h.node('audioOutputs').hidden,false);assert.equal(h.node('audioMixer').inert,false);
+ toggle.click();await h.advance(300);assert.equal(h.node('audioOutputs').hidden,true);
+});

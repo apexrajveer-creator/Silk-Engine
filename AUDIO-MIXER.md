@@ -10,7 +10,7 @@ Click media artwork to restore/focus an existing window for the displayed Window
 
 ## Validation
 
-- 519 Node tests passed, including ten real-controller tests for drawer lifecycle, stable sliders, ordered writes, final-edit flushing, output switching, disappearing sessions, rollback UI and media-click failure.
+- 527 Node tests passed, including ten real-controller tests for drawer lifecycle, stable sliders, ordered writes, final-edit flushing, output switching, disappearing sessions, rollback UI and media-click failure.
 - Browser tests added for drawer geometry/accessibility, keyboard volume and artwork activation. Browser runtime is unavailable here; these tests are not claimed as executed.
 - Rust/Windows build, live Core Audio volume/output switching and foreground-window activation require Windows verification. This environment has no Cargo/Rust or Windows runtime.
 - The original full verifier requires css-tree, which is unavailable here. JavaScript syntax/import/HTML references were checked separately.
@@ -26,3 +26,9 @@ Click media artwork to restore/focus an existing window for the displayed Window
 6. Check the drawer at 100%, 125%, 150% and 200% DPI, including the smaller Island layout. Verify list scrolling, button alignment, focus outlines, theme/opacity inheritance and reduced motion.
 
 Build correction: PROPERTYKEY is imported from Win32::Foundation in windows 0.62.2. This resolves the reported E0432 import error; Windows recompilation remains required.
+
+## Final v1.5 drawer polish
+
+The mixer now animates a measured height over 220 ms. Inner-content ResizeObserver updates are coalesced, so app rows arriving after a native read and changes to the output list get a smooth height adjustment. Collapse keeps the device list in place until the drawer has finished shrinking; rapid reopen cancels its old cleanup. Closing immediately makes the drawer inert. Reduced motion and leaving Quick settle it immediately, and page teardown disconnects the observer. Scroll-to-drawer occurs after the height transition rather than during it.
+
+Unchanged app labels and volume values no longer rewrite text or slider styles during periodic reads. No animation frame loop or extra native polling was added. Seven drawer-motion tests and one rapid-toggle controller test cover these changes. Browser/native visual checks remain pending.

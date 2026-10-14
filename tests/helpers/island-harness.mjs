@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import * as model from '../../src/island/model.js';
 import * as compact from '../../src/island/compact.js';
 import * as surfaceTheme from '../../src/shared/surface-theme.js';
+import * as drawer from '../../src/island/drawer.js';
 import * as lifecycle from '../../src/island/lifecycle.js';
 
 export const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
@@ -108,8 +109,9 @@ export function harness() {
     listen(name, fn) { const set = events.get(name) ?? new Set(); events.set(name, set); set.add(fn); return () => set.delete(fn); },
   };
   const scope = {
-    ...model, ...lifecycle, ...compact, ...surfaceTheme, bridge, SCENES: { silk: { thumb: 'data:image/png,a' }, fluid: { thumb: 'data:image/png,b' } },
+    ...drawer, ...model, ...lifecycle, ...compact, ...surfaceTheme, bridge, SCENES: { silk: { thumb: 'data:image/png,a' }, fluid: { thumb: 'data:image/png,b' } },
     thumbnail: async () => new Blob(['picture']), clearThumbnailMemory() {},
+    createDrawerMotion: (root, content, opts) => drawer.createDrawerMotion(root, content, { ...opts, reduced: () => false, setTimer, clearTimer, observe: () => ({ observe() {}, disconnect() {} }) }),
     createPoller: (load, apply, interval) => lifecycle.createPoller(load, apply, interval, { setTimer, clearTimer }),
     document, console, Blob, URL, performance: { now: () => now }, matchMedia: () => ({ matches: false }),
     requestAnimationFrame: fn => setTimer(fn, 16), setTimeout: setTimer, clearTimeout: clearTimer,

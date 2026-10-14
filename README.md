@@ -19,7 +19,7 @@ See [UPDATE-1.5.0.md](UPDATE-1.5.0.md) for changes, validation and the Windows r
 ![WebGL2](https://img.shields.io/badge/WebGL-2-990000?labelColor=000000)
 [![License: MIT](https://img.shields.io/badge/license-MIT-white?labelColor=000000)](LICENSE)
 
-[Features](#features) &nbsp;·&nbsp; [Built-in wallpapers](#built-in-wallpapers) &nbsp;·&nbsp; [The Studio](#the-studio) &nbsp;·&nbsp; [Install](#install) &nbsp;·&nbsp; [Build from source](#build-from-source) &nbsp;·&nbsp; [Web wallpapers](#web-wallpaper-api) &nbsp;·&nbsp; [Contributing](#project-layout)
+[Features](#features) &nbsp;·&nbsp; [Built-in wallpapers](#built-in-wallpapers) &nbsp;·&nbsp; [The Studio](#the-studio) &nbsp;·&nbsp; [Echelon Dock](#echelon-dock) &nbsp;·&nbsp; [Circle to Search](#circle-to-search) &nbsp;·&nbsp; [Install](#install) &nbsp;·&nbsp; [Build from source](#build-from-source) &nbsp;·&nbsp; [Web wallpapers](#web-wallpaper-api) &nbsp;·&nbsp; [Contributing](#project-layout)
 
 <br>
 
@@ -50,10 +50,13 @@ liquid glass, large titles and a floating dock.
 - **Reacts to your cursor** when it is over the desktop, with inertia and no snapping.
 - **Global hotkeys.** Change wallpaper, pause, toggle OLED mode and more from any app, even while Silk
   Engine sits in the tray. Every shortcut is rebindable. See [Hotkeys](#hotkeys).
-- **The island.** Rest the cursor at the top-centre of any screen and a small bar slides in with the time,
-  CPU and memory. Click it and it opens into a glass panel with six tabs: quick settings (Wi-Fi, Bluetooth,
-  volume), clipboard history, system stats, your most used apps, your wallpapers, and power. See
-  [The island](#the-island).
+- **Echelon Dock.** A compact Dynamic Island at the top of your screen, with the time, system readings,
+  battery percentage and a small audio visualizer. Expand it for media controls, an app-volume mixer,
+  audio output selection, quick settings, clipboard history, system stats, apps, wallpapers and power.
+  See [Echelon Dock](#echelon-dock).
+- **Circle to Search.** Press `Ctrl+Alt+Shift+0`, draw a freeform outline around anything on screen,
+  and search the selected crop with Google Lens. Results open inside Silk's liquid-glass interface.
+  See [Circle to Search](#circle-to-search).
 - **Multi-monitor.** Each display can play something different, or one wallpaper can span them all.
 - **OLED mode.** Near-black shadows go to true `#000`, highlights get an emissive pop, and an
   optional burn-in guard gently shifts pixels on real OLED screens.
@@ -188,29 +191,35 @@ so births brighten and deaths fade out instead of flickering.
 - **Tunable.** Rules, colour, pixel style, cell size, speed, mandala, edge wrapping, how strongly the music
   plants, afterglow, bloom, lens streaks, CRT, camera drift, unlit pixels and brightness.
 
-## The island
+## Echelon Dock
 
-Push the cursor to the **top-centre of a screen** and rest it there for a moment (a quarter of a second
-by default): a small bar slides in with the time, CPU and memory. **Click it** and it opens into a panel with
-six tabs. `Esc`, clicking somewhere else, or `Ctrl+Alt+Shift+I` closes it. It works on every monitor.
+Echelon Dock is Silk's Dynamic Island: a compact pill that expands into a liquid-glass desktop toolbar.
+Rest the cursor at the **top-centre of a screen** for a moment (250 ms by default) to reveal it.
+The compact view shows the clock, CPU and memory readings, battery percentage (or AC on a desktop)
+and a small visualizer driven by system audio.
+
+**Click the pill** to open its six tabs. `Esc`, clicking elsewhere, or `Ctrl+Alt+Shift+I` closes it.
+The Dock can appear on any monitor, and its colours follow Silk's applied Windows accent when theme sync
+is enabled. Song changes crossfade the artwork and text while keeping playback controls in place.
 
 | Tab | What it does |
 |---|---|
-| **Quick** | A **media card** for whatever is playing (Spotify, a browser, VLC, Media Player: anything in Windows' media flyout) with its artwork, title, artist and app, a progress bar you can drag to seek, and previous, play/pause and next. Below it: Wi-Fi, Bluetooth, mute, pause wallpaper, OLED black and widgets in one compact row, the volume, and shortcuts into the Windows settings pages. A PC with no Bluetooth adapter says so and opens Settings instead; a player that cannot skip or seek has those controls dimmed. |
+| **Quick** | Media artwork, track title, artist and player, with seek, previous, play/pause and next controls. Click artwork to bring the player window forward. Wi-Fi, Bluetooth, mute, wallpaper pause, OLED and widget toggles sit below it. Click the speaker beside master volume to expand separate app-volume bars and choose an audio output. Shortcuts open Network, Bluetooth, Sound, Display, Circle to Search and the Studio. |
 | **Clipboard** | The last 30 things you copied. Click one to copy it again. |
 | **System** | Live CPU and memory with a one-minute chart, and how long Windows has been running. |
 | **Apps** | The programs you use most, as bubble buttons with each program's own icon, its name, the time, and your share of time as a soft fill inside the bubble. Click one to start it. A program Windows has no icon for gets a neutral glyph. |
 | **Wallpapers** | Your whole library with real thumbnails (your own videos and images included, made the same way the Studio makes them), the one playing marked, and previous, next, random and pause. |
 | **Power** | Sleep, lock, sign out, restart and shut down. |
 
-**It never gets in your way.** The bar needs a short rest at the edge, so flicking across it does nothing. It
+**A deliberate reveal.** The bar needs a short rest at the edge, so flicking across it does nothing. It
 never appears while you are dragging a window, or while a full-screen app, game or presentation is running.
 It does not steal the keyboard from what you are typing into (it only takes focus once you click it open).
 If you dismiss it, it will not pop back up until the cursor has left the edge and returned. Turn it off,
-or change the delay, under **System → Island**.
+or change its reveal delay and transparency under **System → Island**. A small **Reset** button restores
+the default transparency.
 
 **Privacy.** The clipboard history and the app tally are both **off until you turn them on**, inside the
-island, and each says exactly what it keeps:
+Dock, and each says exactly what it keeps:
 
 * *Clipboard history* is kept in memory only: never written to disk, gone when the app closes, wiped the moment
   you turn it off, text only, and anything a password manager copies is skipped (it honours the same two
@@ -221,12 +230,48 @@ island, and each says exactly what it keeps:
 
 **Safety.** Sign out, restart and shut down need a second tap (the button turns red and says "Tap again to
 confirm", and disarms itself after three seconds); the app refuses them unless they were confirmed. The page only
-ever sends fixed names (`restart`, `network`, ...), never a command, path or address, and the island's commands
-only accept calls from its own window.
+ever sends fixed names (`restart`, `network`, ...), never a command, path or address, and native Dock commands are restricted to trusted local app windows.
 
 *Honest limit:* the window is transparent, so the apps behind it are not blurred (only the operating system can do
 that); the "liquid glass" look comes from translucent layers, a light rim, a highlight that follows the pointer and
 the way the bar flows into the panel.
+
+### Audio mixer and media windows
+
+Click the **speaker beside the master volume bar** to expand the mixer beneath it. Each app with a
+current Windows audio session gets a separate volume bar; multiple sessions from the same app on the
+same output are grouped together. The **Output** selector switches the default playback device, and
+**Sound settings** opens Windows' audio settings when you need more control. Mixer polling stops when
+the drawer closes or you leave Quick.
+
+Click a media thumbnail to restore or focus its player, such as Spotify or the browser playing YouTube.
+Silk prefers a matching track/video title when several windows are open. Windows does not expose the exact
+background browser tab through its media API, so selecting that hidden tab is not guaranteed.
+Apps with their own output assignment may need to change device inside the app; the separate
+communications output is preserved.
+
+## Circle to Search
+
+Search something you can see without leaving your desktop to prepare an image.
+
+1. Press **`Ctrl+Alt+Shift+0`** (top-row zero), or choose **Circle to Search** in Echelon Dock's Quick tab.
+2. The current screen is captured and held still. **Draw around what you want to search.** Your actual
+   cursor path forms the selection; it can be any closed freeform shape, not just a circle or rectangle.
+3. Release to preview the crop. Choose **Search with Lens**, or **Redraw** to make another selection.
+   **`Esc` cancels**; the hint sits beside the two glass pill buttons.
+4. Google Lens results open in a larger, centred **liquid-glass window inside Silk**, with back,
+   forward, reload and close controls. Google's results can include visual matches, images, links and
+   an AI Overview when Google provides one for that search.
+
+The capture overlay and results casing follow Silk's applied accent colour when theme sync is enabled.
+The shortcut can be changed under **System → Hotkeys**.
+
+**Privacy and availability.** The captured screen and crop are held in memory rather than saved as
+screenshot files. Only the selected crop is uploaded to Google when you choose **Search with Lens**;
+cancelling does not submit it. Results use an embedded Google page with its own browser session,
+so Google may show consent, sign-in or verification prompts. AI Overviews are not guaranteed for every
+search. See [CIRCLE-SEARCH.md](CIRCLE-SEARCH.md) and [AUDIO-MIXER.md](AUDIO-MIXER.md) for implementation
+notes, limits and validation.
 
 ## When something goes wrong
 
@@ -274,7 +319,8 @@ These work from any app, even while Silk Engine is in the tray. Turn them off, o
 | Toggle audio reactivity | `Ctrl+Alt+Shift+A` | React to system audio |
 | Toggle cursor reaction | `Ctrl+Alt+Shift+C` | React to the cursor on the desktop |
 | Open Silk Engine | `Ctrl+Alt+Shift+S` | Bring up the Studio |
-| Open the island | `Ctrl+Alt+Shift+I` | The top-edge toolbar, on this screen |
+| Open Echelon Dock | `Ctrl+Alt+Shift+I` | The Dynamic Island toolbar, on this screen |
+| Circle to Search | `Ctrl+Alt+Shift+0` | Draw a selection and search it with Google Lens |
 | Show or hide widgets | `Ctrl+Alt+Shift+W` | All desktop widgets |
 | Restart wallpaper | `Ctrl+Alt+Shift+R` | Reload the renderer |
 
@@ -407,6 +453,9 @@ src/                         frontend: no bundler, plain ES modules
     gl.js                    WebGL2 core and the display-resolution composite (OLED, bicubic, dither)
     main.js                  viewports, scheduler, input, hibernate, overlays, theme-sync sampling
     scenes/                  silk, fluid, lissajous (Harmonics), particles, terrain, life, media
+  island.html, island/       Echelon Dock: compact pill, tabs, media and audio mixer
+  search.html, search/       Circle to Search: frozen capture and freeform selection
+  lens.html                 local glass casing for embedded Lens results
   widgets/                   widget editor and the Rainmeter importer
   community/                 Discover gallery UI and client
   shared/
@@ -419,6 +468,10 @@ src-tauri/src/
   desktop.rs                 attach behind the icons (classic and 24H2), monitors, WebView2 suspend
   watcher.rs                 covered-monitor detection, battery, cursor, layout, hibernation
   audio.rs                   WASAPI loopback, FFT, bands, waveform
+  island_host.rs, island.rs   Dock lifecycle, positioning and native commands
+  media.rs, media_window.rs   Windows media sessions, artwork and player-window activation
+  mixer.rs                   Core Audio app volumes and playback output selection
+  circle_search.rs           screen capture, selection upload and embedded Lens webview
   theme.rs                   Windows accent colour sync, with backup and restore
   hotkeys.rs                 system-wide hotkeys: action table, shortcut rules, the registration thread
   protocol.rs                wp:// streaming file server, restricted to library items
@@ -458,10 +511,3 @@ wallpaper (cymatics and Lissajous strands) was written for this project.
 ## License
 
 [MIT](LICENSE) © 2026 ECHELON
-
-
-### Circle to Search and compact Island update
-
-Press **Ctrl + Shift + Alt + 0** (the top-row zero), or use **Circle to Search** in the Island's Quick section. Draw a freeform outline, release the mouse to preview the selection, then choose **Search with Lens**. Esc cancels; Redraw clears the selection. The shortcut is configurable in Settings → Hotkeys.
-
-The compact Island now displays the clock, battery percentage (or AC on desktops), and a small system-audio visualizer. Its opening/tab transitions are faster, and both Island and search-overlay colors follow Silk's applied taskbar accent when theme sync is enabled. See [CIRCLE-SEARCH.md](CIRCLE-SEARCH.md) for behavior, privacy, limits and validation.
