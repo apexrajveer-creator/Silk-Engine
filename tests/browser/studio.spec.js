@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ACTIONS } from '../../src/shared/hotkeys.js';
 test('Studio boots styled, tabs work, widgets persist and diagnostics open', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/index.html');
@@ -18,7 +19,7 @@ test('Studio boots styled, tabs work, widgets persist and diagnostics open', asy
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('silk-engine-mock')).widgets.items.length)).toBe(count);
   await page.locator('[data-tab="system"]').click();
   await page.locator('#showDiagnostics').click();
-  await expect(page.locator('#diagnosticsText')).toHaveValue(/"version": "1.0.0"/);
+  await expect(page.locator('#diagnosticsText')).toHaveValue(/"version": "1.5.0"/);
   for (const tab of ['display', 'about', 'library']) { await page.locator(`[data-tab="${tab}"]`).click(); await expect(page.locator('#' + tab)).toBeVisible(); }
   await expect(page.locator('#startupFailure')).toBeHidden();
   expect(errors).toEqual([]);
@@ -140,7 +141,7 @@ test('Hotkeys: record, refuse unsafe and duplicate shortcuts, flag one another a
   await expect(page.locator('#system')).toBeVisible();   // tab changes fade out and swap, so wait for the page itself
   const row = id => page.locator(`.hk-row[data-id="${id}"]`);
   const press = async (mods, key) => { for (const m of mods) await page.keyboard.down(m); await page.keyboard.press(key); for (const m of [...mods].reverse()) await page.keyboard.up(m); };
-  await expect(page.locator('.hk-row')).toHaveCount(18);
+  await expect(page.locator('.hk-row')).toHaveCount(ACTIONS.length);   // one row per action in the shared table, however many there are
   await expect(row('next').locator('kbd')).toHaveText(['Ctrl', 'Alt', 'Shift', '→']);
   await expect(row('profile1').locator('.hk-none')).toBeVisible();
 
@@ -175,17 +176,65 @@ test('Hotkeys: record, refuse unsafe and duplicate shortcuts, flag one another a
   await expect(row('next')).toHaveAttribute('data-status', 'active');
 });
 
-test('Spectral Terrain is the fifth built-in, shares one row with the others and can be played', async ({ page }) => {
+test('The six built-in wallpapers share one row, with Spectral Terrain and Cell Garden playable', async ({ page }) => {
   await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
   const cards = page.locator('#scenes .wcard');
-  await expect(cards).toHaveCount(5);
+  await expect(cards).toHaveCount(6);
   await expect(cards.nth(4)).toContainText('Spectral Terrain');
+  await expect(cards.nth(5)).toContainText('Cell Garden');
   // offsetTop is layout position: the cards' entrance animation moves them on screen for a moment, which would not mean a second row
   const tops = await cards.evaluateAll(els => els.map(e => e.offsetTop));
-  expect(new Set(tops).size, 'all five cards on one row').toBe(1);
-  await cards.nth(4).click();
-  await expect(page.locator('#heroName')).toHaveText('Spectral Terrain');
+  expect(new Set(tops).size, 'all six cards on one row').toBe(1);
+  // no built-in name is cut off (long names wrap onto a second line instead)
+  expect(await page.locator('#scenes .wcard .meta b').evaluateAll(els => els.filter(b => b.scrollHeight > b.clientHeight + 1).length)).toBe(0);
+  await cards.nth(5).click();
+  await expect(page.locator('#heroName')).toHaveText('Cell Garden');
   await expect(page.locator('#heroSub')).toContainText('Rendered live');
   await page.locator('#heroPrev').click();
+  await expect(page.locator('#heroName')).toHaveText('Spectral Terrain');
+  await page.locator('#heroPrev').click();
   await expect(page.locator('#heroName')).toHaveText('Flow Field');
+});
+
+// ---- crash handling: safe mode and the crash notice (the preview backend simulates what the app reports)
+const seedOnce = (page, key) => page.addInitScript(k => { if (!sessionStorage.getItem('seeded-' + k)) { localStorage.setItem(k, '1'); sessionStorage.setItem('seeded-' + k, '1'); } }, key);
+
+test('Normally there is no safe-mode banner and no crash notice', async ({ page }) => {
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  await page.waitForTimeout(600);
+  await expect(page.locator('#safeBanner')).toBeHidden();
+  await expect(page.locator('#toast')).toBeHidden();
+});
+
+test('Safe mode: the banner explains itself, "Restore my settings" dismisses it for good', async ({ page }) => {
+  await seedOnce(page, 'silk-engine-mock-safe');
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  const banner = page.locator('#safeBanner');
+  await expect(banner).toBeVisible();
+  await expect(banner).toHaveAttribute('role', 'alert');
+  await expect(banner).toContainText('Safe mode');
+  await expect(banner).toContainText('not lost');
+  await banner.getByRole('button', { name: 'Restore my settings' }).click();
+  await expect(banner).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('Your settings are back');
+  expect(await page.evaluate(() => localStorage.getItem('silk-engine-mock-safe'))).toBeNull();
+  await page.reload(); await page.waitForFunction(() => window.silkReady === true); await page.waitForTimeout(500);
+  await expect(banner).toBeHidden();   // and it stays gone
+});
+
+test('Safe mode: "Keep safe settings" also dismisses it', async ({ page }) => {
+  await seedOnce(page, 'silk-engine-mock-safe');
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  await page.locator('#safeBanner').getByRole('button', { name: 'Keep safe settings' }).click();
+  await expect(page.locator('#safeBanner')).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('Keeping the safe settings');
+});
+
+test('After a real crash the Studio says so once, not on every launch', async ({ page }) => {
+  await seedOnce(page, 'silk-engine-mock-crash');
+  await page.goto('/index.html'); await page.waitForFunction(() => window.silkReady === true);
+  await expect(page.locator('#toast')).toContainText('unexpected problem');
+  await expect(page.locator('#safeBanner')).toBeHidden();
+  await page.reload(); await page.waitForFunction(() => window.silkReady === true); await page.waitForTimeout(800);
+  await expect(page.locator('#toast')).toBeHidden();
 });

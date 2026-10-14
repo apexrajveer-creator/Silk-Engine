@@ -14,7 +14,7 @@ export function backdrop(canvas, { onLite } = {}) {
   const gl = canvas.getContext('webgl', { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'low-power', preserveDrawingBuffer: false });
   if (!gl) { canvas.style.background = 'radial-gradient(120% 90% at 70% 20%,#2a2d36,#000 70%)'; return; }
   const fs = `precision highp float;
-uniform vec2 uRes; uniform float uTime;
+uniform vec2 uRes; uniform float uTime; uniform vec3 uTint;
 float pat(vec2 t,float o){return 0.6+0.4*sin(5.0*(t.x+t.y+cos(3.0*t.x+5.0*t.y)+0.02*o)+sin(20.0*(t.x+t.y-0.1*o)));}
 float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 void main(){
@@ -39,7 +39,7 @@ void main(){
   veil=mix(veil,0.84,smoothstep(0.62,1.15,r));
   col*=1.0-veil;
   col-=hash(gl_FragCoord.xy+fract(t)*91.0)*0.012;        // grain, also kills 8-bit banding
-  gl_FragColor=vec4(max(col,0.0),1.0);
+  gl_FragColor=vec4(max(col*uTint,0.0),1.0);
 }`;
   const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
   const p = gl.createProgram();
@@ -50,23 +50,24 @@ void main(){
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  const uRes = gl.getUniformLocation(p, 'uRes'), uTime = gl.getUniformLocation(p, 'uTime');
+  const uRes = gl.getUniformLocation(p, 'uRes'), uTime = gl.getUniformLocation(p, 'uTime'), uTint = gl.getUniformLocation(p, 'uTint');
+  let tint = [1,1,1], targetTint = tint, tintAt = performance.now();
 
   const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   let lite = weak, scale = weak ? 1 / 3 : 1 / 2, fps = weak ? 20 : 30;
   if (lite) onLite?.(true);
 
-  let raf = 0, last = 0, t = 7, slow = 0, frames = 0, focused = document.hasFocus();
+  let raf = 0, wake = 0, disposed = false, last = 0, t = 7, slow = 0, frames = 0, focused = document.hasFocus();
   const size = () => {
     const w = Math.max(1, Math.round(innerWidth * scale)), h = Math.max(1, Math.round(innerHeight * scale));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
     gl.uniform2f(uRes, w, h);
   };
-  const paint = () => { gl.uniform1f(uTime, t); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
+  const paint = () => { const now = performance.now(), blend = reduce.matches ? 1 : 1-Math.exp(-Math.max(0,now-tintAt)/85); tintAt = now; tint = tint.map((v,i)=>v+(targetTint[i]-v)*blend); gl.uniform3f(uTint,...tint); gl.uniform1f(uTime, t); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
   const step = now => {
     raf = 0;
-    if (document.hidden || navigationBusy()) return;
+    if (disposed || reduce.matches || document.hidden || navigationBusy()) return;
     const interval = 1000 / (focused ? fps : 8);
     const gap = now - last;
     if (gap >= interval - 2) {
@@ -77,15 +78,25 @@ void main(){
       }
       t += Math.min(0.1, gap / 1000) * 0.32; last = now; paint();
     }
-    raf = requestAnimationFrame(step);
+    // Sleep between background frames instead of polling at the monitor refresh rate.
+    wake = setTimeout(() => { wake = 0; if (!disposed) raf = requestAnimationFrame(step); }, Math.max(1, interval - (performance.now() - last) - 16));
   };
-  const kick = () => { if (!raf && !reduce && !document.hidden && !navigationBusy()) { last = performance.now(); raf = requestAnimationFrame(step); } };
-  document.addEventListener('studio-navigation-start',()=>{cancelAnimationFrame(raf);raf=0;});
+  const kick = () => { if (!disposed && !raf && !wake && !reduce.matches && !document.hidden && !navigationBusy()) { last = performance.now(); raf = requestAnimationFrame(step); } };
+  const stop = () => { cancelAnimationFrame(raf); clearTimeout(wake); raf = wake = 0; };
+  document.addEventListener('studio-navigation-start', stop);
   document.addEventListener('studio-navigation-idle',kick);
   size(); paint();
   kick();
   let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { size(); paint(); }, 80); });
-  document.addEventListener('visibilitychange', kick);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else kick(); });
+  reduce.addEventListener('change', () => { stop(); if (reduce.matches) paint(); else kick(); });
+  addEventListener('pagehide', () => { disposed = true; stop(); clearTimeout(rz); gl.getExtension('WEBGL_lose_context')?.loseContext(); }, { once: true });
   addEventListener('focus', () => { focused = true; kick(); });
   addEventListener('blur', () => { focused = false; });
+  return { setAccent(color) {
+    if (!/^#[0-9a-f]{6}$/i.test(color || '')) return;
+    const channels = [1,3,5].map(i=>parseInt(color.slice(i,i+2),16)/255);
+    const peak = Math.max(...channels,0.01); targetTint = channels.map(v=>0.38+0.62*v/peak); tintAt = performance.now();
+    if (reduce.matches && !document.hidden) paint(); else kick();
+  } };
 }

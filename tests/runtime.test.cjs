@@ -37,7 +37,7 @@ test('decoder recovery retries twice and then reports failure',()=>{
 function rendererContext() {
   const noop=()=>{};let requested=0;
   const doc={getElementById:()=>({addEventListener:noop}),querySelectorAll:()=>[],addEventListener:noop};
-  const scope={console,document:doc,window:{},performance:{now:()=>100},setInterval:noop,setTimeout:noop,requestAnimationFrame:()=>++requested,cancelAnimationFrame:noop,GL:class {},Silk:class {},Fluid:class {},Lissajous:class {},Particles:class {},Terrain:class {},bridge:{isApp:false},defaults:()=>({fps:'30',quality:'balanced'}),resolved:(_schema,v)=>({fps:'30',quality:'balanced',...v}),DISPLAY:[],location:{search:''}};
+  const scope={console,document:doc,window:{},performance:{now:()=>100},setInterval:noop,setTimeout:noop,requestAnimationFrame:()=>++requested,cancelAnimationFrame:noop,GL:class {},Silk:class {},Fluid:class {},Lissajous:class {},Particles:class {},Terrain:class {},Life:class {},bridge:{isApp:false},defaults:()=>({fps:'30',quality:'balanced'}),resolved:(_schema,v)=>({fps:'30',quality:'balanced',...v}),DISPLAY:[],location:{search:''}};
   vm.createContext(scope);
   let source=fs.readFileSync(path.join(root,'renderer/main.js'),'utf8').replace(/^import .*$/mg,'');
   source=source.replace(/^boot\(\)\.catch.*$/m,'');

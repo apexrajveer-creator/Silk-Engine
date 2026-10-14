@@ -46,4 +46,4 @@ export function drawWidget(c,w,width,height,state){
   }
   } finally { c.restore(); }
 }
-export function smoothBands(previous,next,smoothing=65){const follow=1-clamp(smoothing,0,95)/100;return Array.from({length:32},(_,i)=>{const target=clamp(next[i]||0,0,1),old=previous[i]||0;return old+(target-old)*(target>old?Math.max(.45,follow):Math.max(.08,follow));});}
+export function smoothBands(previous,next,smoothing=65){const follow=1-clamp(smoothing,0,95)/100;return Array.from({length:32},(_,i)=>{const target=clamp(next[i]||0,0,1),old=Number.isFinite(+previous[i])?+previous[i]:0;return old+(target-old)*(target>old?Math.max(.45,follow):Math.max(.08,follow));});}

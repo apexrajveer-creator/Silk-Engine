@@ -6,7 +6,7 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Item {
     pub id: String,
@@ -38,7 +38,7 @@ impl Default for Item {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct System {
     pub pause_when_covered: bool,
@@ -50,6 +50,12 @@ pub struct System {
     pub start_with_windows: bool,
     /// Match the Windows accent colour to the wallpaper (see theme.rs).
     pub theme_sync: bool,
+    /// The top-edge island (island.rs): push the cursor to the top-centre of a screen and a bar slides in.
+    pub island: bool,
+    /// How long the cursor has to rest at the edge first (milliseconds).
+    pub island_delay: f64,
+    /// Background transparency percentage; text and controls remain opaque.
+    pub island_transparency: f64,
 }
 
 impl Default for System {
@@ -62,13 +68,26 @@ impl Default for System {
             interactive: true,
             start_with_windows: false,
             theme_sync: false,
+            island: true,
+            island_delay: crate::island::DEFAULT_DWELL_MS as f64,
+            island_transparency: 12.0,
         }
     }
 }
 
+/// What the island may keep. Both are off until the user turns them on, inside the island itself.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct IslandPrefs {
+    /// Keep a history of copied text (in memory only).
+    pub clipboard: bool,
+    /// Keep a tally of which apps are in use.
+    pub apps: bool,
+}
+
 /// System-wide hotkeys (see hotkeys.rs). `bindings` holds only what the user chose: an action that is
 /// missing keeps its default, and "" means deliberately unbound.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Hotkeys {
     pub enabled: bool,
@@ -81,7 +100,7 @@ impl Default for Hotkeys {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Config {
     pub version: u32,
@@ -97,6 +116,7 @@ pub struct Config {
     pub playlist: Playlist,
     pub favorites: Vec<String>,
     pub hotkeys: Hotkeys,
+    pub island: IslandPrefs,
     /// The user's own accent colour, captured before theme sync first changed it.
     pub accent_backup: Option<crate::theme::AccentBackup>,
 }
@@ -118,12 +138,13 @@ impl Default for Config {
             playlist: Playlist::default(),
             favorites: Vec::new(),
             hotkeys: Hotkeys::default(),
+            island: IslandPrefs::default(),
             accent_backup: None,
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopProfile {
     pub id: String,
@@ -134,7 +155,7 @@ pub struct DesktopProfile {
     pub widgets: Value,
     pub settings: HashMap<String, Value>,
 }
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Playlist {
     pub enabled: bool,
@@ -161,6 +182,7 @@ const BUILTINS: &[(&str, &str)] = &[
     ("lissajous", "Harmonics"),
     ("particles", "Flow Field"),
     ("terrain", "Spectral Terrain"),
+    ("life", "Cell Garden"),
 ];
 
 impl Config {
@@ -303,6 +325,10 @@ pub fn validate(cfg: &Config) -> Result<(), String> {
     {
         return Err("Invalid hotkey settings".into());
     }
+    if !cfg.system.island_delay.is_finite() || cfg.system.island_delay > 60_000.0 {
+        return Err("Invalid island delay".into());
+    }
+    if !cfg.system.island_transparency.is_finite() || !(0.0..=80.0).contains(&cfg.system.island_transparency) { return Err("Invalid Island transparency".into()); }
     let mut profile_ids = std::collections::HashSet::new();
     for p in &cfg.profiles {
         if p.id.is_empty()
@@ -622,17 +648,20 @@ mod migration_tests {
         assert!(validate(&c).is_err(), "oversized hotkey settings are refused");
     }
     #[test]
-    fn terrain_is_a_builtin_and_appears_for_existing_libraries() {
-        let mut c = Config::default();
-        c.ensure_builtins();
-        assert!(c.item("builtin-terrain").is_some());
-        let mut old = Config::default();
-        old.items.clear();
-        old.ensure_builtins();
-        old.items.retain(|i| i.id != "builtin-terrain");
-        old.ensure_builtins(); // an install from before Spectral Terrain existed gets it on first launch
-        assert!(old.item("builtin-terrain").is_some());
-        assert!(validate(&old).is_ok());
+    fn newer_builtins_appear_for_existing_libraries() {
+        for id in ["builtin-terrain", "builtin-life"] {
+            let mut c = Config::default();
+            c.ensure_builtins();
+            assert!(c.item(id).is_some(), "{id} is a built-in");
+            // an install from before this wallpaper existed gets it on first launch, with its saved settings untouched
+            let mut old = c.clone();
+            old.items.retain(|i| i.id != id);
+            old.paused = true;
+            old.ensure_builtins();
+            assert!(old.item(id).is_some(), "{id} is added to an older library");
+            assert!(old.paused);
+            assert!(validate(&old).is_ok());
+        }
     }
     #[test]
     fn reject_tight_intervals_and_duplicate_profiles() {

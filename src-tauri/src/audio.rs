@@ -2,6 +2,12 @@
 //! sent to the renderer ~30 times a second, and only while something is actually playing.
 
 use serde::Serialize;
+#[cfg(windows)]
+static OUTPUT_CHANGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Reopen loopback on the new default after an explicit mixer output change.
+pub fn output_changed() {
+    #[cfg(windows)] OUTPUT_CHANGED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
 
 #[derive(Serialize, Clone)]
 pub struct Bands {
@@ -136,9 +142,8 @@ pub fn spawn(app: tauri::AppHandle) {
                     let vis = st.vis.lock().unwrap();
                     (
                         cfg.system.audio
-                            && !cfg.paused
-                            && !vis.hibernating
-                            && !vis.all_covered
+                            && (app.state::<crate::IslandHolder>().0.peek_audio.load(Ordering::Relaxed)
+                                || (!cfg.paused && !vis.hibernating && !vis.all_covered))
                             && !vis.locked
                             && !(vis.on_battery && cfg.system.battery == "pause"),
                         st.quitting.load(Ordering::Relaxed),
@@ -146,6 +151,15 @@ pub fn spawn(app: tauri::AppHandle) {
                 };
                 if quitting {
                     return;
+                }
+                if OUTPUT_CHANGED.swap(false, Ordering::Relaxed) {
+                    stream = None;
+                    buf.lock().unwrap().clear();
+                    failed.store(false, Ordering::Relaxed);
+                    retry_at = Instant::now();
+                    last_sound = Instant::now() - Duration::from_secs(10);
+                    let _ = app.emit("audio", Bands { bands: vec![0.0; 32], bass: 0.0, mid: 0.0, treble: 0.0, wave: Vec::new() });
+                    sent_silence = true;
                 }
                 if failed.swap(false, Ordering::Relaxed) {
                     stream = None; // device changed (headphones plugged in, etc.): reopen

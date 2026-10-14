@@ -15,7 +15,7 @@ function sync(){
     for(const w of data.items){if(w.visible===false||!onMonitor(w,monitor,monitors))continue;const el=document.createElement('canvas');const width=Math.max(1,monitor.w/dpr*w.w),height=Math.max(1,monitor.h/dpr*w.h);const size=canvasSize(width,height,dpr*budgetScale,4_194_304);el.width=size.width;el.height=size.height;Object.assign(el.style,{position:'fixed',left:(monitor.x/dpr+w.x*monitor.w/dpr)+'px',top:(monitor.y/dpr+w.y*monitor.h/dpr)+'px',width:width+'px',height:height+'px'});el.addEventListener('contextrestored',sync,{once:true});root.append(el);nodes.push({w,canvas:el,c:el.getContext('2d'),width,height,ratio:el.width/width,ratioY:el.height/height,bands:Array(32).fill(0)});}
   }kick();
 }
-function kick(){clearTimeout(timer);if(!raf&&nodes.length&&!vis.hibernating)raf=requestAnimationFrame(paint);}
+function kick(){clearTimeout(timer);if(!cfg||document.hidden||widgetPolicy(cfg,vis).hidden)return;if(!raf&&nodes.length&&!vis.hibernating)raf=requestAnimationFrame(paint);}
 function paint(now){
   raf=0;const policy=widgetPolicy(cfg,vis);if(!nodes.length||policy.hidden)return;
   const audible=cfg.system.audio&&!policy.paused&&now-audioAt<700;const moving=nodes.some(n=>n.w.type==='visualizer'||n.w.type==='rainmeter'&&n.w.skin.measures.some(m=>m.kind==='audio'));
@@ -33,3 +33,6 @@ let lastConfig='';bridge.listen('state',c=>{const key=JSON.stringify(c.widgets);
 bridge.listen('layout',m=>{monitors=m;sync();});bridge.listen('visibility',v=>{vis=v;sync();});
 bridge.listen('audio',a=>{target=a.bands||[];audioAt=performance.now();if(nodes.some(n=>n.w.type==='visualizer'||n.w.type==='rainmeter'))kick();});
 addEventListener('resize',sync);
+
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);clearTimeout(timer);raf=0;}else kick();});
+addEventListener('pagehide',()=>{cancelAnimationFrame(raf);clearTimeout(timer);for(const n of nodes)n.canvas.width=n.canvas.height=1;nodes=[];},{once:true});

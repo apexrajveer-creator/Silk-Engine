@@ -1,3 +1,4 @@
+import { createFrameBatch, createPageTransition } from '../shared/motion.js';
 import { aboutExperience } from './about.js';
 import { installScrolling, navigationBusy, waitForNavigationIdle } from './scrolling.js';
 import { keyboard } from './keyboard.js';
@@ -16,6 +17,7 @@ import { lookFilter } from '../shared/preview-policy.js';
 import { cleanTitle } from '../shared/titles.js';
 import { installDropdowns } from './dropdown.js';
 import { hotkeysSection } from './hotkeys.js';
+import { stabilityBanner } from './stability.js';
 installDropdowns();
 import { accentFrom } from '../shared/accent.js';
 
@@ -40,7 +42,7 @@ addEventListener('unhandledrejection', e => { e.preventDefault(); toast(e.reason
 const discoverUI = discover({notify:toast,target:()=>st.target});
 const widgetsUI = widgetEditor({ art, notify: toast });
 
-backdrop($('bg'), { onLite: on => document.documentElement.classList.toggle('lite', on) });
+const studioBackdrop = backdrop($('bg'), { onLite: on => document.documentElement.classList.toggle('lite', on) });
 
 // ------------------------------------------------------------------ data helpers
 const itemBy = id => st.cfg.items.find(i => i.id === id);
@@ -83,20 +85,22 @@ async function art(box, it, { hover = false } = {}) {
   const bounds = box.getBoundingClientRect();
   const width = previewWidth(bounds.width || 640, bounds.height || 360, devicePixelRatio || 1);
   box._artWidth = width;
+  const keepHero = !!box.closest('.cine') && box.dataset.item === it?.id && [...box.querySelectorAll('img')].some(i => i.complete && i.naturalWidth);
   box._artCleanup?.();
   for(const url of box._artURLs||[])URL.revokeObjectURL(url);box._artURLs=new Set();
   const ticket = box._artTicket = (box._artTicket || 0) + 1;
-  box.textContent = ''; box.style.background = '';
+  if (!keepHero) { box.textContent = ''; box.style.background = ''; }
   box.dataset.item = it?.id || '';
   box.dataset.previewKey = it?.kind === 'scene' ? JSON.stringify(it.settings || {}) : '';
   if (!it) return;
-  const img = src => { if(src.startsWith('blob:'))box._artURLs.add(src);const i = new Image(); i.decoding = 'async'; i.loading = 'lazy'; i.alt = ''; i.src = src; i.onload = () => { i.classList.add('in'); if(src.startsWith('blob:')) URL.revokeObjectURL(src); }; i.onerror = () => { if(src.startsWith('blob:')) URL.revokeObjectURL(src); }; box.append(i); return i; };
-  if (it.kind === 'scene') { const sc = SCENES[it.scene]; if (sc?.thumb) img(sc.thumb); else box.style.background = sc?.art || '#000';
+  const img = src => { if(src.startsWith('blob:'))box._artURLs.add(src);const i = new Image(); i.decoding = 'async'; i.loading = 'lazy'; i.alt = ''; i.src = src; i.onload = () => { i.classList.add('in'); if (box.closest('.cine') && box._artTicket === ticket && box.isConnected) void updateAmbient(box, it.id, true); if(src.startsWith('blob:')) URL.revokeObjectURL(src); }; i.onerror = () => { if(src.startsWith('blob:')) URL.revokeObjectURL(src); }; box.append(i); return i; };
+  if (it.kind === 'scene') { const sc = SCENES[it.scene]; if (sc?.thumb) { if (!keepHero) img(sc.thumb); } else box.style.background = sc?.art || '#000';
     const hero = !!box.closest('.cine');
     const heroWidth = hero ? Math.round((box.getBoundingClientRect().width || innerWidth) * (devicePixelRatio || 1)) : width;
     simulationPreview(it, st.cfg?.display, heroWidth, { hero }).then(src => {
-      if (!src || box._artTicket !== ticket || !box.isConnected) return;
-      if (hero) { const under = [...box.querySelectorAll('img')]; const top = img(src); top.addEventListener('load', () => setTimeout(() => under.forEach(u => u.remove()), 900), { once: true }); }
+      if (!src) return;
+      if (box._artTicket !== ticket || !box.isConnected) { if (src.startsWith('blob:')) URL.revokeObjectURL(src); return; }
+      if (hero) { const under = [...box.querySelectorAll('img')]; const top = img(src); top.addEventListener('load', () => { under.forEach(u => u.classList.add('art-outgoing')); setTimeout(() => under.forEach(u => u.remove()), 260); }, { once: true }); }
       else { box.textContent = ''; img(src); }
     }).catch(() => {});
     return; }
@@ -146,6 +150,11 @@ function control(s, value, onChange) {
     const paint = () => input.style.setProperty('--p', ((input.value - s.min) / (s.max - s.min) * 100) + '%');
     input.oninput = () => { trail.textContent = input.value + (s.unit || ''); paint(); onChange(+input.value); };
     input.setAttribute('aria-label', s.label); paint(); r.append(input);
+    if (s.key === 'islandTransparency') {
+      const reset = el('button', 'link-btn transparency-reset', 'Reset'); reset.type = 'button'; reset.setAttribute('aria-label', 'Reset Island transparency to default');
+      reset.onclick = () => { input.value = s.value; trail.textContent = s.value + (s.unit || ''); paint(); onChange(s.value); };
+      r.querySelector('.main').append(reset);
+    }
   } else if (s.type === 'bool') {
     input = Object.assign(el('input'), { type: 'checkbox', className: 'switch', checked: !!value });
     input.onchange = () => onChange(input.checked); r.append(input);
@@ -169,23 +178,32 @@ function group(schema, values, onChange, cls = 'group glass') {
 }
 /** Rows that appear or disappear with a setting slide open and closed instead of jumping. */
 function toggleRow(r, hide, animate) {
+  r._targetHidden = hide;
   if (r.hidden === hide && !r._anim) return;
-  if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { r.hidden = hide; return; }
+  if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { clearTimeout(r._t); r._anim?.cancel(); r._anim = null; r.style.overflow = ''; r.hidden = hide; return; }
   r._anim?.cancel();
   if (!hide) r.hidden = false;
   const h = r.scrollHeight;
   const frames = [{ height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', minHeight: '0px' }, { height: h + 'px', opacity: 1 }];
   r.style.overflow = 'hidden';
-  r._anim = r.animate(hide ? frames.slice().reverse() : frames, { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' });
+  r._anim = r.animate(hide ? frames.slice().reverse() : frames, { duration: 220, easing: 'cubic-bezier(.22,1,.36,1)' });
   // finalise on a timer rather than onfinish, so the row always ends in the right state
   clearTimeout(r._t);
-  r._t = setTimeout(() => { r._anim?.cancel(); r._anim = null; r.style.overflow = ''; r.hidden = hide; }, 330);
+  r._t = setTimeout(() => { r._anim?.cancel(); r._anim = null; r.style.overflow = ''; r.hidden = hide; }, 230);
 }
 function seg(root, options, value, onPick) {
-  const thumb = root.querySelector('.thumb'); root.querySelectorAll('button').forEach(b => b.remove());
-  options.forEach(([v, label]) => { const b = el('button', null, esc(label)); b.setAttribute('aria-pressed', v === value); b.title = label; b.onclick = () => onPick(v); root.append(b); });
-  requestAnimationFrame(() => {
-    const on = [...root.querySelectorAll('button')].find(b => b.getAttribute('aria-pressed') === 'true');
+  const thumb = root.querySelector('.thumb'), key = JSON.stringify(options);
+  root._segPick = onPick;
+  if (root._segKey !== key) {
+    root._segKey = key; root.querySelectorAll('button').forEach(b => b.remove());
+    options.forEach(([v, label]) => { const b = el('button', null, esc(label)); b.dataset.value = v; b.title = label; b.onclick = () => root._segPick(v); root.append(b); });
+  }
+  const buttons = [...root.querySelectorAll('button')];
+  buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.value === String(value))));
+  if (root._segFrame) cancelAnimationFrame(root._segFrame);
+  root._segFrame = requestAnimationFrame(() => {
+    root._segFrame = 0;
+    const on = buttons.find(b => b.getAttribute('aria-pressed') === 'true');
     if (on) { thumb.style.width = on.offsetWidth + 'px'; thumb.style.transform = `translateX(${on.offsetLeft - 2}px)`; thumb.style.opacity = 1; } else thumb.style.opacity = 0;
   });
 }
@@ -205,6 +223,7 @@ function renderHero() {
   const hero = $('hero'), cur = hero.querySelector('.hero-bg:not(.leaving)');
   if (cur.dataset.id !== it.id) {
     const first = !cur.dataset.id;
+    hero.querySelectorAll('.hero-bg.leaving').forEach(layer => layer.remove());
     const nb = el('div', 'hero-bg' + (first ? '' : ' entering')); nb.dataset.id = it.id;
     if (first) { cur.dataset.id = it.id; art(cur, it); updateAmbient(cur, it.id); }
     else {
@@ -242,14 +261,16 @@ function heroCredits(it) {
 
 // Ambient light: the hero image's dominant colour glows faintly into the page below it.
 let ambientFor = '';
-async function updateAmbient(box, id) {
-  if (ambientFor === id) return; ambientFor = id;
-  const img = await new Promise(res => { let tries = 0; const look = () => { const i = box.querySelector('img'); if (i?.complete && i.naturalWidth) res(i); else if (++tries < 40) setTimeout(look, 150); else res(null); }; look(); });
-  if (!img || ambientFor !== id) return;
+async function updateAmbient(box, id, force = false) {
+  const key = JSON.stringify([id, box.dataset.previewKey || '']);
+  if (!force && ambientFor === key) return; ambientFor = key;
+  const img = await new Promise(res => { let tries = 0; const look = () => { const i = [...box.querySelectorAll('img')].filter(i=>i.complete && i.naturalWidth).at(-1); if (i?.complete && i.naturalWidth) res(i); else if (++tries < 40) setTimeout(look, 150); else res(null); }; look(); });
+  if (!img || ambientFor !== key || !box.isConnected || targetItem()?.id !== id) return;
   try {
     const c = document.createElement('canvas'); c.width = 32; c.height = 18;
     const ctx = c.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, 0, 0, 32, 18);
-    $('library').style.setProperty('--ambient', accentFrom(ctx.getImageData(0, 0, 32, 18).data));
+    const color = accentFrom(ctx.getImageData(0, 0, 32, 18).data);
+    $('library').style.setProperty('--ambient', color); studioBackdrop?.setAccent(color);
   } catch { /* cross-origin or decode failure: keep the previous glow */ }
 }
 
@@ -330,12 +351,13 @@ function renderCards() {
 }
 
 // ------------------------------------------------------------------ settings sheet
-let sheetReturnFocus = null;
+let sheetReturnFocus = null, sheetCloseTimer = 0;
 const BIRD_KEYS = ['emblem', 'emblemSize', 'emblemPos', 'emblemOpacity'];
 function openSheet(id) {
   const it = itemBy(id); if (!it) return;
   if (!st.sheet) sheetReturnFocus = document.activeElement;
-  st.sheet = id;
+  clearTimeout(sheetCloseTimer); sheetCloseTimer = 0;
+  st.sheet = id; $('sheet').inert = false;
   renderFavourite();
   $('sheet').classList.remove('closing'); $('scrim').classList.remove('closing');
   $('sheet').hidden = false; $('scrim').hidden = false;
@@ -358,8 +380,9 @@ function closeSheet() {
   if (!st.sheet) return; st.sheet = null;
   (sheetReturnFocus?.isConnected?sheetReturnFocus:$('customise')).focus();
   const sh = $('sheet'), sc = $('scrim');
-  sh.classList.add('closing'); sc.classList.add('closing');
-  setTimeout(() => { if (st.sheet) return; sh.hidden = true; sc.hidden = true; sh.classList.remove('closing'); sc.classList.remove('closing'); }, 280);
+  sh.inert = true; sh.classList.add('closing'); sc.classList.add('closing');
+  clearTimeout(sheetCloseTimer);
+  sheetCloseTimer = setTimeout(() => { sheetCloseTimer = 0; if (st.sheet) return; sh.hidden = true; sc.hidden = true; sh.classList.remove('closing'); sc.classList.remove('closing'); }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200);
 }
 function renderFavourite() { const on=!!st.cfg?.favorites?.includes(st.sheet);$('sFavorite').textContent=on?'Remove from favourites':'Add to favourites';$('sFavorite').setAttribute('aria-pressed',String(on)); }
 $('sFavorite').onclick=async()=>{try{await bridge.invoke('set_favorite',{id:st.sheet,favorite:!st.cfg.favorites?.includes(st.sheet)});renderFavourite();}catch(e){toast(e.message);}};
@@ -409,14 +432,15 @@ function pushSettings(id, k, v) {
 const desktopsUI = lifestyles({ bridge, flush: flushAll, notify: toast, state: () => st, art });
 maintenance({ bridge, flush: flushAll, notify: toast, state: () => st });
 const hotkeysUI = hotkeysSection({ bridge, notify: toast });
+stabilityBanner({ bridge, notify: toast });
 
 // ------------------------------------------------------------------ Display & System pages
 // [title, keys, column, icon, resettable]
 const DISPLAY_GROUPS = [['Rendering', ['quality', 'fps'], 0, 'render'], ['OLED', ['oled', 'oledStrength', 'blackCrush', 'burnGuard'], 0, 'oled'], ['Clock', ['clock', 'clockFormat', 'clockDate', 'clockPosition', 'clockSize', 'clockOpacity'], 0, 'clock'], ['Overlays', ['stats'], 0, 'overlay'],
   ['Colour', ['brightness', 'contrast', 'saturation', 'warmth'], 1, 'colour', true], ['Finish', ['grain', 'vignette'], 1, 'finish', true]];
-const GROUP_ICONS = { power: '<path d="M12 3v8"/><path d="M6.3 7a8 8 0 1 0 11.4 0"/>', input: '<path d="M6 3l12 8-5 1 3 6-2 1-3-6-4 3z"/>', windows: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>', render: '<path d="M4 6h16v10H4z"/><path d="M9 20h6M12 16v4"/>', oled: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/>', clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>', overlay: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15l3-3 2 2 3-4"/>', colour: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16" opacity=".35"/><circle cx="12" cy="12" r="3"/>', finish: '<path d="M5 19 19 5"/><path d="M14 5h5v5"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="17" cy="17" r="1.2" fill="currentColor"/>' };
+const GROUP_ICONS = { island: '<rect x="3" y="8" width="18" height="8" rx="4"/><path d="M7 12h4M15 12h2"/>', power: '<path d="M12 3v8"/><path d="M6.3 7a8 8 0 1 0 11.4 0"/>', input: '<path d="M6 3l12 8-5 1 3 6-2 1-3-6-4 3z"/>', windows: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>', render: '<path d="M4 6h16v10H4z"/><path d="M9 20h6M12 16v4"/>', oled: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/>', clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>', overlay: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15l3-3 2 2 3-4"/>', colour: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16" opacity=".35"/><circle cx="12" cy="12" r="3"/>', finish: '<path d="M5 19 19 5"/><path d="M14 5h5v5"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="17" cy="17" r="1.2" fill="currentColor"/>' };
 const LOOKS = [['Natural', { brightness: 100, contrast: 100, saturation: 100, warmth: 0 }], ['Vivid', { brightness: 103, contrast: 110, saturation: 128, warmth: 0 }], ['Cinema', { brightness: 95, contrast: 114, saturation: 88, warmth: 14 }], ['Warm', { brightness: 101, contrast: 102, saturation: 106, warmth: 32 }], ['Cool', { brightness: 100, contrast: 104, saturation: 102, warmth: -30 }], ['Muted', { brightness: 98, contrast: 94, saturation: 70, warmth: 4 }]];
-const SYSTEM_GROUPS = [['Power', ['pauseWhenCovered', 'hibernate', 'battery'], 0, 'power'], ['Input', ['audio', 'interactive'], 1, 'input'], ['Windows', ['themeSync', 'startWithWindows'], 2, 'windows']];
+const SYSTEM_GROUPS = [['Power', ['pauseWhenCovered', 'hibernate', 'battery'], 0, 'power'], ['Input', ['audio', 'interactive'], 1, 'input'], ['Island', ['island', 'islandDelay', 'islandTransparency'], 2, 'island'], ['Windows', ['themeSync', 'startWithWindows'], 3, 'windows']];
 let quickKey = '';
 function renderQuick() {
   const d = resolved(DISPLAY, st.cfg.display);
@@ -435,7 +459,7 @@ function renderQuick() {
 function renderPages() {
   const pages = [
     [$('displayGroups'), DISPLAY, DISPLAY_GROUPS, { ...defaults(DISPLAY), ...st.cfg.display }, (k, v) => changeDisplay(k, v)],
-    [$('systemGroups'), SYSTEM, SYSTEM_GROUPS, { ...defaults(SYSTEM), ...st.cfg.system }, (k, v, all) => bridge.invoke('set_system', { system: { ...defaults(SYSTEM), ...st.cfg.system, ...all } })],
+    [$('systemGroups'), SYSTEM, SYSTEM_GROUPS, { ...defaults(SYSTEM), ...st.cfg.system }, (k, v, all) => bridge.invoke('set_system', { system: { ...defaults(SYSTEM), ...st.cfg.system, ...all, [k]: v } }).catch(e => { toast(String(e?.message ?? e)); renderPages(); })],
   ];
   for (const [root, schema, groups, values, save] of pages) {
     root.textContent = '';
@@ -491,17 +515,30 @@ function render(full) {
   if (full) renderPages();
   if (st.sheet && !itemBy(st.sheet)) closeSheet();
 }
-async function play(id) { await bridge.invoke('assign', { monitor: st.target, itemId: id }); }
+const renderBatch = createFrameBatch(full => render(full));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderBatch.flush(); });
+window.addEventListener('pagehide', () => renderBatch.dispose(), { once: true });
+async function play(id) {
+  try { await bridge.invoke('assign', { monitor: st.target, itemId: id }); }
+  catch (error) { toast(String(error?.message ?? error)); }
+}
 async function addPaths(paths) {
   if (!paths.length) return;
   const added = await bridge.invoke('add_paths', { paths });
   if (added && added.length) await play(added[0].id);
 }
-$('add').onclick = async () => addPaths(await bridge.pickFiles());
-$('addWeb').onclick = async () => addPaths(await bridge.pickFiles({ directory: true }));
-$('add').oncontextmenu = async e => { e.preventDefault(); addPaths(await bridge.pickFiles({ directory: true })); };
+const importPicked = async options => { try { await addPaths(await bridge.pickFiles(options)); } catch (error) { toast(String(error?.message ?? error)); } };
+$('add').onclick = () => importPicked();
+$('addWeb').onclick = () => importPicked({ directory: true });
+$('add').oncontextmenu = e => { e.preventDefault(); void importPicked({ directory: true }); };
 $('add').title = 'Add videos, GIFs or images';
-const togglePause = () => bridge.invoke('set_paused', { paused: !st.cfg.paused });
+let pauseBusy = false;
+const togglePause = async () => {
+  if (pauseBusy) return; pauseBusy = true;
+  try { await bridge.invoke('set_paused', { paused: !st.cfg.paused }); }
+  catch (error) { toast(String(error?.message ?? error)); }
+  finally { pauseBusy = false; }
+};
 $('pause').onclick = togglePause; $('heroPause').onclick = togglePause;
 // Previous / next wallpaper, in library order, on the selected display(s).
 function stepWallpaper(dir) {
@@ -526,8 +563,7 @@ function animateTitle(page) {
 const tabScroll = new Map();
 // Tab changes: fade the content out, swap pages while it is invisible (so any rendering hitch on the
 // new page can't be seen), then fade back in. One layer, opacity only. A click mid-fade just retargets.
-const FADE_OUT = 140, FADE_IN = 240;
-let fade = { phase: null, target: null, timer: 0 };
+const FADE_OUT = 90, FADE_IN = 150;
 function swapTab(tab) {
   if (tab === st.tab || !$(tab)) return;
   const old = $(st.tab), next = $(tab);
@@ -548,31 +584,24 @@ function swapTab(tab) {
   if (tab === 'library') { mapKey = ''; renderDisplays(); }
   if (old.contains(document.activeElement)) { const title = next.querySelector('h1'); if (title) { title.tabIndex = -1; title.focus({ preventScroll: true }); } }
 }
+const navigationMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const pageLayer = document.querySelector('.app');
+const pageFade = createPageTransition({
+  outMs: FADE_OUT, inMs: FADE_IN, reduced: () => navigationMotion.matches || document.hidden,
+  leave(ms) { beginNavigation(FADE_OUT + FADE_IN + 80); pageLayer.style.willChange = 'opacity'; pageLayer.style.transition = `opacity ${ms}ms ease-in`; pageLayer.style.opacity = '0'; },
+  commit: swapTab,
+  enter(ms) { pageLayer.style.transition = `opacity ${ms}ms ease-out`; pageLayer.style.opacity = '1'; },
+  settle() { pageLayer.style.transition = ''; pageLayer.style.opacity = ''; pageLayer.style.willChange = ''; },
+  onError: error => toast(String(error?.message ?? error)),
+});
 function showTab(tab) {
-  if (!$(tab)) return;
-  const app = document.querySelector('.app');
-  // active dock state responds instantly, even before the fade completes
+  if (!$(tab) || (tab === st.tab && !pageFade.active)) return;
   document.querySelectorAll('.dock-item').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { swapTab(tab); return; }
-  if (tab === st.tab && !fade.phase) return;
-  beginNavigation();
-  fade.target = tab;
-  if (fade.phase === 'out') return;                    // already fading out: the swap will use the latest target
-  clearTimeout(fade.timer);
-  fade.phase = 'out';
-  app.style.willChange = 'opacity';
-  app.style.transition = `opacity ${FADE_OUT}ms ease-in`;
-  app.style.opacity = '0';
-  fade.timer = setTimeout(() => {
-    swapTab(fade.target);
-    fade.phase = 'in';
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      app.style.transition = `opacity ${FADE_IN}ms ease-out`;
-      app.style.opacity = '1';
-      fade.timer = setTimeout(() => { fade.phase = null; app.style.transition = ''; app.style.opacity = ''; app.style.willChange = ''; }, FADE_IN + 30);
-    }));
-  }, FADE_OUT);
+  pageFade.request(tab);
 }
+document.addEventListener('visibilitychange', () => { if (document.hidden) pageFade.finish(); });
+navigationMotion.addEventListener('change', () => { if (navigationMotion.matches) { pageFade.finish(); document.querySelectorAll('.row').forEach(r => { if (r._anim) toggleRow(r, r._targetHidden, false); }); } });
+window.addEventListener('pagehide', () => pageFade.dispose(), { once: true });
 document.querySelectorAll('.dock-item').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 let scrolled = false;
 document.addEventListener('studio-navigation-start',()=>document.querySelectorAll('.wcard').forEach(c=>c._stopPreview?.()));
@@ -612,7 +641,7 @@ if (bridge.isApp && window.__TAURI__?.window) {
   $('ver').textContent = `Version ${s.version} · ${s.platform}`;
   $('compact').textContent = 'Library';
   if (!bridge.isApp) { $('restartRenderer').hidden = true; }
-  bridge.invoke('config_dir').then(d => $('cfgdir').textContent = d);
+  bridge.invoke('config_dir').then(d => $('cfgdir').textContent = d).catch(() => { $('cfgdir').textContent = 'Unavailable'; });
   render(true);
   animateTitle($('library'));
   document.querySelectorAll('#library .hero,#library .group').forEach((e, i) => { e.style.setProperty('--i', i); e.classList.add('reveal'); });
@@ -622,15 +651,16 @@ if (bridge.isApp && window.__TAURI__?.window) {
     c.display = { ...c.display, ...settingsWrites.patches().get('$display') };
     st.cfg = c;
     // never rebuild a form while the user is dragging one of its sliders
-    render(pagesChanged && !document.activeElement?.closest('#displayGroups,#systemGroups'));
+    renderBatch.request(pagesChanged && !document.activeElement?.closest('#displayGroups,#systemGroups'));
   });
   bridge.listen('app-error', message => toast(message));
   bridge.listen('renderer-error', message => toast(message));
   bridge.listen('layout', m => { st.monitors = m; if (st.target !== '*' && !m.some(x => x.key === st.target)) st.target = '*'; render(); });
   bridge.listen('accent-applied', c => { accentNow = c || null; renderAccent(); });
-  bridge.listen('visibility', v => { st.vis = v; renderStatus(); renderHero(); renderDisplays(); });
+  bridge.listen('visibility', v => { st.vis = v; renderBatch.request(); });
   window.silkReady = true;
   $('startupFailure').hidden = true;
+  await window.silkRevealStudio?.();
 })().catch(error => window.silkStartupFailed?.(error.message || error));
 
 addEventListener('keydown', e => { if (e.defaultPrevented || st.sheet || document.querySelector('dialog[open]') || editable(e.target)) return; if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') { e.preventDefault(); $('add').click(); } });

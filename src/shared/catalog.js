@@ -32,7 +32,10 @@ export const SYSTEM = [
   { key: 'audio', label: 'React to system audio', type: 'bool', value: true },
   { key: 'interactive', label: 'React to the cursor on the desktop', type: 'bool', value: true },
   { key: 'startWithWindows', label: 'Start with Windows', type: 'bool', value: false },
-  { key: 'themeSync', label: 'Match Windows accent colour to wallpaper', type: 'bool', value: false, hint: 'Start, taskbar highlights and title bars follow the wallpaper. Your own colour comes back when you turn this off.' },
+  { key: 'island', label: 'Top-edge island', type: 'bool', value: true, hint: 'Rest the cursor at the top-centre of a screen for a moment and a toolbar slides in: quick settings, clipboard, stats, apps, wallpapers and power.' },
+  { key: 'islandDelay', label: 'Island reveal delay', type: 'slider', min: 100, max: 1000, value: 250, unit: ' ms', when: ['island', true] },
+  { key: 'islandTransparency', label: 'Island transparency', type: 'slider', min: 0, max: 80, value: 12, unit: '%', when: ['island', true] },
+  { key: 'themeSync', label: 'Match Windows accent colour to wallpaper', type: 'bool', value: false, hint: 'Start, taskbar highlights and title bars follow the wallpaper (in an RGB colour mode they go dark grey instead of chasing the colours). Your own colour comes back when you turn this off.' },
 ];
 
 // The ECHELON bird overlay, available on every wallpaper type.
@@ -136,6 +139,32 @@ export const SCENES = {
       ...emblem(false),
     ],
   },
+  life: {
+    thumb: 'assets/thumbs/life.webp',
+    name: 'Cell Garden', tag: 'Simulation', desc: "Conway's Game of Life as an arcade cabinet shot like a film: glowing pixels, white-hot births, lens streaks. The music plants gliders and seeds; it never dies.",
+    art: 'linear-gradient(180deg,#02140a,#06301a)',
+    settings: [
+      { key: 'rule', label: 'Rules', type: 'combo', value: 'life', options: [['life', "Classic Life (B3/S23)"], ['highlife', 'HighLife (has a replicator)'], ['daynight', 'Day & Night'], ['seeds', 'Seeds (explosive)'], ['coral', 'Coral growth'], ['brain', "Brian's Brain (neurons)"]] },
+      { key: 'palette', label: 'Colour', type: 'combo', value: 'phosphor', options: [['phosphor', 'Phosphor green'], ['amber', 'Amber terminal'], ['arcade', 'Arcade neon'], ['gameboy', 'Game Boy'], ['ember', 'Embers'], ['ice', 'Ice'], ['echelon', 'Cobalt'], ['rgb', 'RGB (slowly shifts)'], ['custom', 'Custom colour']] },
+      { key: 'color', label: 'Custom colour', type: 'color', value: '#5b8dff', when: ['palette', 'custom'] },
+      { key: 'shape', label: 'Pixels', type: 'combo', value: 'square', options: [['square', 'Arcade squares'], ['led', 'LED tiles'], ['dot', 'Round dots']] },
+      { key: 'cell', label: 'Cell size', type: 'slider', min: 3, max: 16, value: 6, unit: ' px' },
+      { key: 'speed', label: 'Speed', type: 'slider', min: 0, max: 200, value: 100, unit: '%' },
+      { key: 'symmetry', label: 'Mandala', type: 'combo', value: 'off', options: [['off', 'Off'], ['mirror', 'Mirror left and right'], ['quad', 'Four-fold']] },
+      { key: 'wrap', label: 'Wrap around the edges', type: 'bool', value: true },
+      pct('react', 'Music plants the garden', 75),
+      { key: 'brush', label: 'Cursor paints cells', type: 'bool', value: true, hint: 'Hold to draw, click for a seed with four gliders flying out.' },
+      pct('afterglow', 'Afterglow', 60),
+      pct('glow', 'Bloom', 55),
+      pct('streaks', 'Lens streaks', 35),
+      pct('crt', 'CRT scanlines', 40),
+      pct('camera', 'Camera drift', 35),
+      pct('unlit', 'Unlit pixels', 30),
+      { key: 'hud', label: 'Arcade readout (generation and population)', type: 'bool', value: false },
+      { key: 'brightness', label: 'Brightness', type: 'slider', min: 20, max: 100, value: 100, unit: '%' },
+      ...emblem(false),
+    ],
+  },
 };
 
 export const MEDIA = {
@@ -161,10 +190,11 @@ export const MEDIA = {
   ],
 };
 
+// Own properties only: a plain-object lookup would also "find" inherited names such as constructor or toString.
 export function schemaFor(item) {
   if (!item) return [];
-  if (item.kind === 'scene') return SCENES[item.scene]?.settings || [];
-  return MEDIA[item.kind] || [];
+  if (item.kind === 'scene') return (Object.hasOwn(SCENES, item.scene) && SCENES[item.scene].settings) || [];
+  return Object.hasOwn(MEDIA, item.kind) ? MEDIA[item.kind] : [];
 }
 
 export function defaults(schema) {
@@ -211,12 +241,13 @@ export function hsv(h, s, v) {
 
 /** Pick a colour for splats/particles from a palette setting. */
 export function paletteColor(name, custom, t = Math.random()) {
+  t = Math.min(1, Math.max(0, Number.isFinite(+t) ? +t : 0));   // a NaN or out-of-range t must never reach a shader as a NaN colour
   if (name === 'mono') {
     const c = hexRGB(custom);
     const k = 0.6 + 0.8 * t;
     return c.map(x => Math.min(1, x * k));
   }
-  const p = PALETTES[name];
+  const p = Object.hasOwn(PALETTES, name) ? PALETTES[name] : null;
   if (!p) return hsv(t, 0.85, 1);
   return hexRGB(p[Math.floor(t * p.length) % p.length]);
 }

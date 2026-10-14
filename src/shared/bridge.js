@@ -33,7 +33,7 @@ function hotkeysDto() {
   return { enabled, bindings, defaults: defaultBindings(), actions: ACTIONS, status };
 }
 
-const BUILTINS = [['silk', 'Living Silk'], ['fluid', 'Fluid Ink'], ['lissajous', 'Harmonics'], ['particles', 'Flow Field'], ['terrain', 'Spectral Terrain']];
+const BUILTINS = [['silk', 'Living Silk'], ['fluid', 'Fluid Ink'], ['lissajous', 'Harmonics'], ['particles', 'Flow Field'], ['terrain', 'Spectral Terrain'], ['life', 'Cell Garden']];
 function mockConfig() {
   let c;
   try { c = JSON.parse(localStorage.getItem(KEY)); } catch (e) { }
@@ -71,6 +71,31 @@ const idb = {
 };
 let pickedFiles = [];
 
+const islandLog = [];
+const islandMock = {
+  quick: { wifi: true, bluetooth: false, volume: .62, muted: false },
+  mixer: { devices: [{ id: 'demo-speakers', name: 'Speakers', default: true }, { id: 'demo-headphones', name: 'Headphones', default: false }], apps: [{ deviceId: 'demo-speakers', appId: 'spotify', name: 'Spotify', deviceName: 'Speakers', volume: .8, muted: false }, { deviceId: 'demo-speakers', appId: 'chrome', name: 'Google Chrome', deviceName: 'Speakers', volume: .5, muted: false }] },
+  clipOn: false, clip: [], appsOn: false, apps: [], nextId: 1,
+  // a pretend media player: its position moves with the clock, like a real one
+  media: { active: true, app: 'Spotify', status: 'playing', base: 62, at: Date.now(), track: 0, noArt: false, canPrev: true, canNext: true, canToggle: true, canSeek: true },
+};
+const DEMO_TRACKS = [
+  { title: 'Midnight City', artist: 'M83', album: "Hurry Up, We're Dreaming", duration: 243, hue: 285 },
+  { title: 'Resonance', artist: 'HOME', album: 'Odyssey', duration: 212, hue: 190 },
+  { title: 'Instant Crush (feat. Julian Casablancas)', artist: 'Daft Punk', album: 'Random Access Memories', duration: 337, hue: 20 },
+];
+const demoArt = hue => 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 80% 62%)"/><stop offset="1" stop-color="hsl(${(hue + 60) % 360} 75% 28%)"/></linearGradient></defs><rect width="200" height="200" fill="url(#g)"/><circle cx="130" cy="70" r="46" fill="hsl(${(hue + 30) % 360} 90% 78%)" opacity=".55"/><circle cx="70" cy="140" r="58" fill="hsl(${(hue + 200) % 360} 70% 40%)" opacity=".5"/></svg>`);
+const demoPosition = m => { const d = DEMO_TRACKS[m.track].duration; return m.status === 'playing' ? Math.min(d, m.base + (Date.now() - m.at) / 1000) : m.base; };
+if (!isApp && typeof globalThis === 'object') {
+  globalThis.__islandMock = {
+    log: islandLog, state: islandMock,
+    copy(text) { if (islandMock.clipOn) { islandMock.clip = [{ id: islandMock.nextId++, text, at: Date.now() }, ...islandMock.clip.filter(c => c.text !== text)].slice(0, 30); } },
+    use(name, seconds) { const key = name.toLowerCase(); const a = islandMock.apps.find(x => x.key === key); if (a) a.seconds += seconds; else islandMock.apps.push({ key, name, seconds }); },
+    quick(patch) { Object.assign(islandMock.quick, patch); },
+    media(patch) { const m = islandMock.media; if ('status' in patch || 'position' in patch) { m.base = patch.position ?? demoPosition(m); m.at = Date.now(); } Object.assign(m, patch); delete m.position; },
+  };
+}
+
 const mock = {
   get_state() { return { config: mockConfig(), monitors: mockMonitors(), visibility: { covered: [], onBattery: false, hibernating: false }, platform: 'browser', version: 'dev' }; },
   _save(c) { localStorage.setItem(KEY, JSON.stringify(c)); broadcast('state', c); },
@@ -78,6 +103,55 @@ const mock = {
   set_playlist({playlist}) {const c=mockConfig();c.playlist=playlist;this._save(c);},
   set_favorite({id,favorite}) {const c=mockConfig();c.favorites=(c.favorites||[]).filter(v=>v!==id);if(favorite)c.favorites.push(id);this._save(c);},
   set_widgets({ widgets }) { const c=mockConfig(); c.widgets=widgets; this._save(c); },
+  // Crash handling in the browser preview: set localStorage 'silk-engine-mock-safe' to '1' to see the safe-mode banner.
+  get_stability() {
+    const crashed = localStorage.getItem('silk-engine-mock-crash') === '1'; localStorage.removeItem('silk-engine-mock-crash');
+    return { safeMode: localStorage.getItem('silk-engine-mock-safe') === '1', crashedLastTime: crashed, crashReports: [], log: [] };
+  },
+  leave_safe_mode() { localStorage.removeItem('silk-engine-mock-safe'); },
+  // ---- the island (browser preview): in-memory stand-ins for what the app does. __islandMock lets tests play "the user copied something".
+  island_expand() {}, island_hide() {}, island_ready() { return null; },
+  island_action({ id }) { const c = mockConfig(); if (id === 'pause') c.paused = !c.paused; if (id === 'oled') c.display = { ...c.display, oled: !c.display?.oled }; if (id === 'widgets') c.widgets = { ...(c.widgets || {}), enabled: !(c.widgets?.enabled ?? true) }; this._save?.(c); islandLog.push(['action', id]); },
+  mixer_state() { return structuredClone(islandMock.mixer); },
+  mixer_volume({ deviceId, appId, volume }) { const app = islandMock.mixer.apps.find(a => a.deviceId === deviceId && a.appId === appId); if (!app) throw Error('Audio session ended'); if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw Error('Invalid app volume'); app.volume = volume; if (volume > 0) app.muted = false; islandLog.push(['mixer_volume', appId, volume]); },
+  mixer_output({ deviceId }) { const device = islandMock.mixer.devices.find(d => d.id === deviceId); if (!device) throw Error('Output disconnected'); for (const d of islandMock.mixer.devices) d.default = d.id === deviceId; for (const a of islandMock.mixer.apps) { a.deviceId = deviceId; a.deviceName = device.name; } islandLog.push(['mixer_output', deviceId]); },
+  media_open({ id, sourceId }) { islandLog.push(['media_open', id, sourceId]); },
+  quick_state() { return { ...islandMock.quick }; },
+  quick_set({ what, value }) { const q = islandMock.quick; if (what === 'wifi') q.wifi = value >= .5; else if (what === 'bluetooth') q.bluetooth = value >= .5; else if (what === 'mute') q.muted = value >= .5; else if (what === 'volume') q.volume = value; else throw 'Unknown setting'; islandLog.push(['quick_set', what, value]); },
+  quick_open({ page }) { islandLog.push(['quick_open', page]); },
+  power_do({ action, confirmed }) { if (['signout', 'restart', 'shutdown'].includes(action) && !confirmed) throw 'This ends your session, so it has to be confirmed first'; islandLog.push(['power', action, confirmed]); },
+  clip_state() { return { enabled: islandMock.clipOn, items: islandMock.clip.map(c => ({ id: c.id, preview: c.text.replace(/\s+/g, ' ').slice(0, 140), chars: c.text.length, ageSecs: Math.max(0, Math.floor((Date.now() - c.at) / 1000)) })) }; },
+  clip_enable({ enabled }) { islandMock.clipOn = !!enabled; if (!enabled) islandMock.clip = []; },
+  clip_use({ id }) { const c = islandMock.clip.find(x => x.id === id); if (!c) throw 'That item is gone'; islandLog.push(['clip_use', c.text]); },
+  clip_remove({ id }) { islandMock.clip = islandMock.clip.filter(x => x.id !== id); },
+  clip_clear() { islandMock.clip = []; },
+  apps_state() { const total = islandMock.apps.reduce((n, a) => n + a.seconds, 0) || 1; return { enabled: islandMock.appsOn, items: [...islandMock.apps].sort((a, b) => b.seconds - a.seconds).slice(0, 8).map(a => ({ key: a.key, name: a.name, seconds: a.seconds, share: a.seconds / total * 100 })) }; },
+  apps_enable({ enabled }) { islandMock.appsOn = !!enabled; },
+  apps_clear() { islandMock.apps = []; },
+  apps_launch({ key }) { islandLog.push(['apps_launch', key]); },
+  apps_icon({ key }) {
+    islandMock.iconAsks = (islandMock.iconAsks || 0) + 1;
+    if (key.startsWith('noicon')) return null;                       // a program Windows has no icon for: the bubble keeps its neutral glyph
+    let hue = 0; for (const ch of key) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+    return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="13" fill="hsl(${hue} 70% 52%)"/><circle cx="32" cy="32" r="13" fill="none" stroke="#fff" stroke-width="5"/></svg>`);
+  },
+  media_state() {
+    islandMock.mediaPolls = (islandMock.mediaPolls || 0) + 1;
+    const m = islandMock.media; if (!m.active) return { active: false };
+    const t = DEMO_TRACKS[m.track];
+    return { active: true, app: m.app, sourceId: 'demo-player', title: m.title ?? t.title, artist: m.artist ?? t.artist, album: t.album, status: m.status, position: demoPosition(m), duration: m.duration ?? t.duration, canPrev: m.canPrev, canNext: m.canNext, canToggle: m.canToggle, canSeek: m.canSeek, thumbId: `demo-${m.track}` };
+  },
+  media_thumb({ id }) { const m = islandMock.media; return m.noArt || !String(id).startsWith('demo-') ? null : demoArt(DEMO_TRACKS[Number(String(id).slice(5)) % DEMO_TRACKS.length].hue); },
+  media_control({ action, value }) {
+    const m = islandMock.media;
+    if (!m.active) throw 'Nothing is playing';
+    if (action === 'toggle') { m.base = demoPosition(m); m.at = Date.now(); m.status = m.status === 'playing' ? 'paused' : 'playing'; }
+    else if (action === 'next' || action === 'prev') { m.track = (m.track + (action === 'next' ? 1 : DEMO_TRACKS.length - 1)) % DEMO_TRACKS.length; m.base = 0; m.at = Date.now(); delete m.title; delete m.artist; delete m.duration; }
+    else if (action === 'seek') { m.base = value; m.at = Date.now(); }
+    else throw 'Unknown media action';
+    islandLog.push(['media', action, ...(action === 'seek' ? [value] : [])]);
+  },
+  get_surface_accent() { return mockConfig().system?.themeSync ? localStorage.getItem('silk-engine-accent') : null; },
   get_hotkeys() { return hotkeysDto(); },
   set_hotkeys({ enabled, bindings }) {
     const stored = {};
@@ -90,7 +164,10 @@ const mock = {
     return hotkeysDto();
   },
   hotkeys_suspend() { return hotkeysDto(); },
-  widget_metrics() { return {cpu:null,ram:null,uptime:performance.now()/1000}; },
+  widget_metrics() {
+    if (globalThis.__demoMetrics) { const t = performance.now() / 1000, total = 16 * 2 ** 30; const ram = 58 + 6 * Math.sin(t / 5); return { battery: 83, hasBattery: true, charging: false, cpu: Math.max(2, 24 + 18 * Math.sin(t / 2.3) + 6 * Math.sin(t * 1.7)), ram, ramTotal: total, ramAvail: total * (1 - ram / 100), uptime: 3 * 3600 + t }; }
+    return {battery:null,hasBattery:null,charging:false,cpu:null,ram:null,uptime:performance.now()/1000};
+  },
   set_display({ patch }) { const c = mockConfig(); for (const [k, v] of Object.entries(patch)) v === null ? delete c.display[k] : c.display[k] = v; this._save(c); },
   set_system({ system }) { const c = mockConfig(); const off = c.system?.themeSync && !system.themeSync; c.system = system; this._save(c); if (off) broadcast('accent-applied', null); else if (system.themeSync) broadcast('accent-request', null); },
   // Browser preview: record the colour instead of touching Windows.

@@ -5,7 +5,7 @@ const load = name => import('../src/' + name);
 
 test('built-in scenes at default settings use the bundled render (no GPU work)', async () => {
   const { usesBundledRender } = await load('shared/preview-policy.js');
-  for (const scene of ['silk', 'fluid', 'lissajous', 'particles', 'terrain']) assert.equal(usesBundledRender({ kind: 'scene', scene, settings: {} }), true, scene);
+  for (const scene of ['silk', 'fluid', 'lissajous', 'particles', 'terrain', 'life']) assert.equal(usesBundledRender({ kind: 'scene', scene, settings: {} }), true, scene);
 });
 
 test('a changed preset setting requires a real render; bird overlay settings do not', async () => {

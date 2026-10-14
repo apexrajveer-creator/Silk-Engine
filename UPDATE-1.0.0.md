@@ -145,3 +145,106 @@
 - Fixed: the renderer stress script still referenced the retired Reaction-Diffusion wallpaper.
 - Tests: 69 unit tests (10 new for hotkeys, Rust parity and the terrain), 12 browser tests (2 new), and
   Rust tests for shortcut parsing, the safety rules, defaults, config compatibility and the new built-in.
+- New wallpaper: Cell Garden, Conway's Game of Life as an arcade cabinet shot like a film. A GPU cellular
+  automaton (one pass per generation, a fixed number of generations per second whatever the frame rate)
+  with the picture cross-fading between generations so births brighten and deaths fade. Six rule sets
+  (Life, HighLife, Day & Night, Seeds, Coral growth, Brian's Brain). Arcade squares, LED tiles or round
+  dots over a faintly lit dead grid; white-hot births cooling into a settled colour; afterglow; a tight
+  and a wide bloom, horizontal anamorphic lens streaks, CRT scanlines, vignette, filmic highlight roll-off
+  and a slow camera drift with a punch on the bass. Palettes: phosphor, amber, arcade, Game Boy, embers,
+  ice, cobalt, RGB, custom. The music plants the garden (beats launch glider volleys, onsets plant the
+  R-pentomino, acorn, spaceships and the odd glider gun, treble scatters sparks); a once-a-second health
+  check replants anything dead or frozen; the cursor paints and a click plants a seed with four gliders;
+  mirror or four-fold symmetry keeps the garden an exact mandala; an optional pixel-font readout shows
+  generation and population. It is the sixth built-in; existing libraries get it on first launch.
+- The Library's built-in row now fits six cards; longer names such as "Spectral Terrain" wrap onto a second
+  line instead of being cut off.
+- Fixed before release: Cell Garden's once-a-second check used a field named `health`, which hid the `health()`
+  method the renderer's heartbeat calls on every scene (only the video scene has one), so the packaged app
+  showed "gr.scene?.health is not a function". The field is renamed, and a new contract test fails if any scene
+  ever gives a field the name of a method the renderer calls (the heartbeat only runs inside the real app,
+  which is why the browser tests never saw it).
+- Tests: 84 unit tests (12 new for Cell Garden, 3 for the scene contract: the pattern library is checked against an independent
+  reference implementation of Life: glider headings, the R-pentomino settling at 116 cells after 1103
+  generations, the acorn at 633 after 5206, the diehard vanishing after 130, the Gosper gun adding a
+  glider every 30 generations; plus rules, symmetry, wrapping, planting and gardener logic), 12 browser
+  tests, 25 Rust tests.
+- Fixed: starting with Windows could open an empty black console window and a blank app. Cause: switching on
+  "Start with Windows" while running a development build (`tauri dev`) registered that development exe under
+  target\debug as the startup item; Windows then ran it at login, and a development build keeps a console open and
+  needs the dev server for its interface. Now: a development build refuses to register itself (with an explanation,
+  and the switch goes back); on every launch the app reads back its own startup entry (autostart.rs) and removes a
+  leftover development entry, or, in an installed app with the setting on, rewrites the entry with the real path;
+  the diagnostics report shows what Windows will launch at login. The installed app still starts the way Steam
+  does: `--hidden`, silently into the tray with the wallpaper running, no console, and it keeps retrying the
+  desktop attach every half second until Explorer is ready. To clear an old entry, start any new build once (or
+  switch it off in Task Manager -> Startup apps).
+- New: in an RGB colour mode (Harmonics, Spectral Terrain, Cell Garden) theme sync pins the Windows accent to a
+  dark grey (#1b1b1d), so the taskbar and Start go dark and stay put instead of chasing the cycling colours (and
+  hammering the registry); other palettes follow the picture as before. The pin is a pure, tested function
+  (accent.js); a test fails if a new RGB mode is added without a decision about it.
+- Tests: 88 unit tests (3 for the startup rules in Rust, 4 for the RGB accent, plus the scene contract), 29 Rust tests.
+- New: the top-edge island (see README). Cursor to the top-centre of a screen and a bar slides in (time, CPU, memory);
+  click it and it opens into a liquid-glass panel with Quick settings (Wi-Fi, Bluetooth, volume, wallpaper switches,
+  Settings shortcuts), Clipboard history, System stats, most-used Apps, Wallpapers and Power (second tap to confirm
+  sign out, restart and shut down). The hot-edge decision is a tested state machine (dwell, never during a drag or a
+  full-screen app, stays while near, no instant re-pop after dismissing). The window is non-focusable until clicked
+  open, created on demand and destroyed after five idle minutes. Clipboard history and app usage are opt-in,
+  in-memory / local only, and explained in the island. New hotkey Ctrl+Alt+Shift+I; System -> Island has the switch
+  and the reveal delay.
+- New: crash handling. Panics write a crash report and a log line, the app restarts itself (bounded), three rapid
+  crashes start safe mode with the user's settings backed up, and the Studio offers to restore them.
+- Fixed (found by the new tests): Fluid Ink and Cell Garden could be frozen by an absurd time step or audio level (a
+  loop of billions of iterations); audio is now sanitised once at the renderer's entry (src/shared/audio-input.js) and
+  both scenes bound their work. Also fixed: palette colours could be NaN, schemaFor accepted inherited names such as
+  "constructor", smoothBands choked on non-numeric history, Cell Garden's glider volleys scattered instead of flying
+  in formation, and the Library card titles were cut off.
+- Tests: 418 unit tests (catalog, archive attacks, formulas, all six scenes with GPU-leak checks, island model, audio
+  sanitiser, ...), 115 pure-logic Rust tests runnable anywhere plus the platform ones in CI, 46 browser tests.
+- Fixed: the island opened an invisible window. Tauri 2 only lets a window use the event system if its label is in a
+  capability file, and "island" was missing from src-tauri/capabilities, so its page could never hear "show yourself" and
+  stayed fully transparent. Now it has its own minimal capability (core:default only). Also fixed: on the very first reveal
+  the app's "show" could arrive before the page had loaded (the page now asks for a missed show with island_ready), a
+  failure to create the island window is written to the log and the diagnostics instead of being swallowed, and the armed
+  Power button now glows instead of pulsing in size, so a confirmation never moves under your finger.
+- New safeguard: tests/contracts.test.cjs reads the real Rust and the real page and checks that every window the app creates
+  has a capability, every event the app emits is one the page listens for (and vice versa), and every command the island
+  calls is registered. The browser preview pretends all of these exist, which is how the missing capability slipped through;
+  putting the bug back makes three of these tests fail.
+- Tests: 430 unit tests, 30 island browser tests, 15 Studio browser tests.
+- Fixed (the real reason the island never appeared, neither by hotkey nor by cursor): WebView2 shares one profile folder
+  between all of the app's windows and refuses to create a window whose browser arguments differ from the others'
+  ("the resource is not in the correct state"). The Studio and the wallpaper pass BROWSER_ARGS; the island did not, so its
+  window could never be created. It now does. A failure to create the island window is now also shown on screen in the Studio
+  (an app-error toast and the diagnostics log), not only written to the log. tests/contracts.test.cjs now fails if any window
+  is built without the shared BROWSER_ARGS (verified by removing the line).
+- Island: removed the pointer-following highlight (it read as a large halo around the cursor). Fixed the appear-and-disappear
+  blink: the page's "show" handling is now idempotent and only ever moves forward (hidden, peek, open), so a repeated show
+  message (the first reveal sends one as an event and one from the page's own "did I miss one?" check) no longer restarts the
+  fade; a focus-loss in the first 700 ms after opening is ignored (the window is settling, it is not a click away); a bounced
+  hotkey press within 350 ms is ignored; the cursor counts as "on the island" with a 12 px margin; and every hide now writes
+  its reason to the log ("the cursor moved away", "clicked somewhere else", "the hotkey", ...) so a surviving blink can be
+  diagnosed. Verified by putting the old logic back: the page went peek > hidden > peek > hidden > peek, and the new test fails.
+- Tests: 432 unit tests, 118 pure-logic Rust tests, 35 island browser tests.
+- Island: the Quick tab now has a media card. It shows whatever is playing in any app that appears in Windows' media flyout
+  (title, artist, the app's name, the artwork, with a blurred copy of the artwork glowing behind the card), a progress bar that
+  moves smoothly between polls and can be dragged to seek, and previous, play/pause and next; it answers a tap at once and
+  confirms with the player a moment later. Artwork is read once per track and cached; the player is only polled while the Quick tab
+  is on screen. With nothing playing it shows a calm empty state with the controls dimmed; a player that cannot skip or seek has
+  those controls dimmed; a live stream shows "Live". The six switches shrank into one compact row (their state is in the tooltip and
+  for screen readers), the volume bar is slimmer, and the panel is slightly taller. Found while building it: a clipped container
+  can still be scrolled by focus, which shifted the card's contents after a track change; the card and shell now use overflow: clip.
+- Tests: 444 unit tests, 134 pure-logic Rust tests, 51 island browser tests.
+- Island, three fixes. (1) The morph from the bar into the panel is smooth: the window used to be resized at the moment you
+  clicked, which stretched the page for a few frames, and the panel's contents re-laid-out on every frame of the growth. Now the
+  window keeps one size for as long as it is visible (while only the bar shows, it is clipped to the bar with SetWindowRgn so the
+  rest still clicks through, and if Windows refuses the clip it falls back to the old resizing and logs it), and the panel and bar
+  keep their final layout and are revealed by the growing glass. Tests sample the glass every frame (centred, steady, one settle, panel
+  width constant) and fail on the old layout. (2) Apps are bubble buttons with each program's real icon (read with
+  PrivateExtractIconsW, encoded as a PNG by a small encoder that an independent decoder confirmed pixel for pixel, kept after the first
+  read; only for programs in the tally and plain .exe files), a neutral glyph when there is none (never a letter), friendlier names
+  ("Snipping Tool", "Stremio") and Windows' own helper processes (ShellHost, SearchApp...) filtered out. (3) The Wallpapers tab no
+  longer overlaps its tiles (fixed row height), shows real thumbnails for videos and images through the Studio's own thumbnail module
+  and cache, and no scrolling area shows a default scrollbar any more (scrolling still works).
+- Also fixed while testing: the PNG encoder could panic on a zero-sized image (a panic ends the app in a release build).
+- Tests: 446 unit tests, 146 pure-logic Rust tests, 65 island browser tests.

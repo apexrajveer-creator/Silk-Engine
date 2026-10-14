@@ -43,3 +43,20 @@ export function accentFrom(data) {
   const [h, s, v] = hsv(r / k, g / k, b / k);
   return hex(rgb(h, Math.min(0.9, Math.max(0.38, s)), Math.min(0.86, Math.max(0.5, v))));
 }
+
+// ---- RGB colour modes
+// Some wallpapers have an "RGB" palette that cycles through every hue. Chasing that with the Windows accent would
+// flash the taskbar through the rainbow and hit the registry (plus a system-wide broadcast) over and over, so while a
+// wallpaper is in RGB mode the accent is pinned to a dark neutral: the taskbar and Start go black / dark grey and stay put.
+export const RGB_MODE_ACCENT = '#1b1b1d';
+export const isRgbMode = (item, settings) => item?.kind === 'scene' && settings?.palette === 'rgb';
+
+/**
+ * The accent to apply for a wallpaper. `readSample` is only called when it is needed, so RGB mode skips reading pixels.
+ * @param item     the wallpaper item ({ kind, scene, ... })
+ * @param settings its resolved settings
+ * @param readSample () => RGBA bytes of a small sample of the picture
+ */
+export function accentFor(item, settings, readSample) {
+  return isRgbMode(item, settings) ? RGB_MODE_ACCENT : accentFrom(readSample());
+}

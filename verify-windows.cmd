@@ -15,4 +15,4 @@ call npx playwright install chromium
 if errorlevel 1 exit /b 1
 call npm run test:ui
 if errorlevel 1 exit /b 1
-echo All automated checks passed. Complete the Windows desktop checklist in UPDATE-0.8.0.md.
+echo All automated checks passed. Complete the Windows desktop checklist in UPDATE-1.5.0.md.

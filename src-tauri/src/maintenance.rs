@@ -19,6 +19,10 @@ impl Default for Diagnostics {
     }
 }
 pub fn record(app: &AppHandle, message: &str) {
+    // the same event, kept across restarts (best effort; see stability.rs)
+    if let Some(st) = app.try_state::<AppState>() {
+        crate::stability::log_line(&st.dir, crate::stability::unix_now(), crate::stability::home_dir().as_deref(), message);
+    }
     let d = app.state::<Diagnostics>();
     if let Ok(mut events) = d.events.lock() {
         if events.len() >= 40 {
@@ -48,6 +52,16 @@ pub fn diagnostics(app: AppHandle, window: WebviewWindow) -> Result<Value, Strin
         "visibility": *st.vis.lock().map_err(|_| "Visibility unavailable")?,
         "wallpapers": cfg.items.len(), "widgets": cfg.widgets.get("items").and_then(Value::as_array).map_or(0, Vec::len),
         "display": cfg.display, "system": cfg.system,
+        "startup": {
+            "developmentBuild": cfg!(debug_assertions),
+            "entry": crate::autostart::registered_command(&app.package_info().name),
+            "entryIsDevelopmentBuild": crate::autostart::registered_command(&app.package_info().name).as_deref().is_some_and(crate::autostart::is_dev_path),
+        },
+        "stability": {
+            "safeMode": crate::stability::read_state(&st.dir).safe_mode,
+            "crashReports": crate::stability::list_crash_reports(&st.dir),
+            "logTail": crate::stability::read_log_tail(&st.dir, 60),
+        },
         "monitors": crate::desktop::monitors(),
         "events": *d.events.lock().map_err(|_| "Diagnostics unavailable")?
     }))

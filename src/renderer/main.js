@@ -9,10 +9,12 @@ import Fluid from './scenes/fluid.js';
 import Lissajous from './scenes/lissajous.js';
 import Particles from './scenes/particles.js';
 import Terrain from './scenes/terrain.js';
+import Life from './scenes/life.js';
 import Media from './scenes/media.js';
-import { accentFrom } from '../shared/accent.js';
+import { accentFor } from '../shared/accent.js';
+import { sanitizeAudio } from '../shared/audio-input.js';
 
-const SCENE_CLASSES = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles, terrain: Terrain };
+const SCENE_CLASSES = { silk: Silk, fluid: Fluid, lissajous: Lissajous, particles: Particles, terrain: Terrain, life: Life };
 // Display-buffer caps per monitor. Smooth simulations don't need a native 4K buffer; video does.
 const QUALITY = { eco: { out: 1.0e6, media: 2.1e6 }, balanced: { out: 2.1e6, media: 3.7e6 }, high: { out: 3.7e6, media: 8.4e6 }, ultra: { out: Infinity, media: Infinity } };
 const AUTO = ['eco', 'balanced', 'high'];
@@ -184,13 +186,14 @@ function tickClock() {
 setInterval(() => {
   if (!display().burnGuard) { if (shift.x || shift.y) { shift = { x: 0, y: 0 }; placeOverlays(); } return; }
   const t = Math.floor(Date.now() / 120000); shift = { x: Math.round(Math.sin(t * 1.7) * 4), y: Math.round(Math.cos(t * 1.3) * 4) }; placeOverlays();
-}, 30000);
+}, 5000);
 
 // ------------------------------------------------------------------ input
-function onAudio(b) {
+function onAudio(raw) {
+  const b = sanitizeAudio(raw);   // one place makes every value sane, so no scene can be poisoned by a NaN or a runaway number
   const a = S.audio; a.target = (b.bass * 0.7 + b.mid * 0.3); a.bassIn = b.bass; a.midIn = b.mid; a.trebleIn = b.treble; a.t = performance.now();
-  if (Array.isArray(b.bands)) a.bands = b.bands;                          // full 32-band spectrum (cymatics)
-  if (Array.isArray(b.wave) && b.wave.length >= 64) { a.wave = b.wave; a.waveT = a.t; a.waveSeq = (a.waveSeq || 0) + 1; } // raw waveform for the XY scope
+  if (b.bands) a.bands = b.bands;                                         // full 32-band spectrum (cymatics)
+  if (b.wave) { a.wave = b.wave; a.waveT = a.t; a.waveSeq = (a.waveSeq || 0) + 1; } // raw waveform for the XY scope
   if (a.target > 0.01 || a.level > 0.002) kick();
   postWeb({ echelon: 'audio', bands: b.bands });
 }
@@ -292,9 +295,9 @@ function frame(now) {
 
 // ------------------------------------------------------------------ theme sync
 // Samples the primary monitor's composited frame (48x27 px, a one-off readback) after a wallpaper
-// settles, then every 5 minutes for moving scenes. Rust rate-limits and writes the accent.
+// settles, then every 5 seconds for moving scenes. Rust rate-limits and writes the accent.
 const accent = { wanted: false, timer: 0, last: '', canvas: null };
-function scheduleAccent(delay = 350) {
+function scheduleAccent(delay = 100) {
   clearTimeout(accent.timer);
   if (!S.cfg?.system?.themeSync) return;
   accent.timer = setTimeout(() => { accent.wanted = true; S.dirty = true; kick(); }, delay);
@@ -302,29 +305,32 @@ function scheduleAccent(delay = 350) {
 // After any change, sample a few times in quick succession: simulations start nearly empty and a
 // freshly built scene is still warming up, so the first frame is not always the final look.
 // Unchanged colours are skipped, so the extra samples cost almost nothing.
-function accentBurst(first = 350) {
+function accentBurst(first = 100) {
   (accent.burst || []).forEach(clearTimeout);
-  accent.burst = [first, first + 1250, first + 3850].map(d => setTimeout(() => scheduleAccent(0), d));
+  accent.burst = [first, first + 700, first + 2000].map(d => setTimeout(() => scheduleAccent(0), d));
 }
 function sampleAccent() {
   accent.wanted = false;
   const vp = S.vps.find(v => v.mon.primary) || S.vps[0];
   if (!vp || S.vis.covered.includes(vp.mon.key) || !vp.group || vp.group.item.kind === 'web') return;
   try {
-    accent.canvas ||= Object.assign(document.createElement('canvas'), { width: 48, height: 27 });
-    const ctx = accent.canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(canvas, vp.x, vp.y, vp.w, vp.h, 0, 0, 48, 27);
-    const color = accentFrom(ctx.getImageData(0, 0, 48, 27).data);
+    // RGB colour modes pin the accent to a dark neutral (see accent.js); everything else follows the picture
+    const color = accentFor(vp.group.item, vp.group.settings, () => {
+      accent.canvas ||= Object.assign(document.createElement('canvas'), { width: 48, height: 27 });
+      const ctx = accent.canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(canvas, vp.x, vp.y, vp.w, vp.h, 0, 0, 48, 27);
+      return ctx.getImageData(0, 0, 48, 27).data;
+    });
     // skip changes nobody could see: each real change is a registry write plus a system-wide broadcast
     const dist = (a, b) => { const x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16); return Math.abs((x >> 16) - (y >> 16)) + Math.abs(((x >> 8) & 255) - ((y >> 8) & 255)) + Math.abs((x & 255) - (y & 255)); };
     if (color !== accent.last && (!accent.last || dist(color, accent.last) > 14)) {
       accent.last = color;
       // Rust answers false when it throttled the write; ask again shortly so the change is never lost
-      bridge.invoke('apply_accent', { color }).then(r => { if (r === false) { accent.last = ''; scheduleAccent(700); } }).catch(() => {});
+      bridge.invoke('apply_accent', { color }).then(r => { if (r === false) { accent.last = ''; scheduleAccent(200); } }).catch(() => {});
     }
   } catch (e) { console.warn('Theme sync sample failed', e); }
 }
-setInterval(() => { if (S.cfg?.system?.themeSync && !S.sleeping && !document.hidden && !allCovered()) scheduleAccent(0); }, 30000);
+setInterval(() => { if (S.cfg?.system?.themeSync && !S.sleeping && !document.hidden && !allCovered()) scheduleAccent(0); }, 5000);
 
 function fitMap(sw, sh, rw, rh, fit, flipY) {
   const sa = rw / rh, ma = sw / sh;
@@ -403,6 +409,7 @@ async function boot() {
   const wallpaperKey = c => JSON.stringify({...c, widgets: undefined});
   let lastWallpaper = wallpaperKey(S.cfg);
   bridge.listen('state', c => { const key = wallpaperKey(c); const syncWas = S.cfg?.system?.themeSync; S.cfg = c; if (key !== lastWallpaper) { lastWallpaper = key; sync(); accentBurst(); } else if (c.system?.themeSync && !syncWas) { accent.last = ''; accentBurst(250); } });
+  bridge.listen('accent-retry', () => { accent.last = ''; });
   bridge.listen('accent-request', () => { accent.last = ''; accentBurst(250); });
   bridge.listen('layout', m => { S.monitors = m; sync(); });
   bridge.listen('visibility', v => {

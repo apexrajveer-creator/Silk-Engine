@@ -1,6 +1,6 @@
 [package]
 name = "silk-engine"
-version = "1.0.0"
+version = "1.5.0"
 description = "Silk Engine — live wallpapers and GPU simulations for your desktop"
 authors = ["ECHELON"]
 edition = "2021"
@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
@@ -24,10 +24,15 @@ reqwest = { version = "0.13", default-features = false, features = ["native-tls"
 sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
+png = "=0.18.1"
 cpal = "0.15"
 webview2-com = "0.39"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
+  "Win32_Devices_FunctionDiscovery",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_UI_Shell_PropertiesSystem",
   "Win32_Graphics_Gdi",
   "Win32_Graphics_Dwm",
   "Win32_UI_WindowsAndMessaging",
@@ -36,6 +41,19 @@ windows = { version = "0.62", features = [
   "Win32_System_Power",
   "Win32_System_Registry",
   "Win32_System_Threading",
+  "Win32_System_SystemInformation",
+  "Win32_System_DataExchange",
+  "Win32_System_Memory",
+  "Win32_System_Shutdown",
+  "Win32_System_Com",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_UI_Shell",
+  "Devices_Radios",
+  "Media_Control",
+  "Storage_Streams",
+  "Foundation",
+  "Foundation_Collections",
 ] }
 
 [profile.release]

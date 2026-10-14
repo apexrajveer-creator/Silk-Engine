@@ -69,6 +69,11 @@ pub fn palette(c: (u8, u8, u8)) -> [u8; 32] {
 /// Registry writes and the system-wide broadcast are not free: at most one every 600 ms,
 /// and never for the colour that is already applied. A held-back change is retried by the caller.
 type Rgb = (u8, u8, u8);
+pub static WRITE: Mutex<()> = Mutex::new(());
+static APPLIED: Mutex<Option<String>> = Mutex::new(None);
+pub fn remember_applied(color: &str) { if let Ok(mut value) = APPLIED.lock() { *value = Some(color.to_string()); } }
+pub fn applied_color() -> Option<String> { APPLIED.lock().ok().and_then(|value| value.clone()) }
+
 static LAST: Mutex<Option<(Instant, Rgb)>> = Mutex::new(None);
 const MIN_INTERVAL: Duration = Duration::from_millis(600);
 
@@ -88,7 +93,13 @@ pub fn is_current(c: Rgb) -> bool {
     LAST.lock().map(|l| matches!(*l, Some((_, prev)) if prev == c)).unwrap_or(false)
 }
 
+/// Keep the last successful surface palette when a registry write fails; allow the next sample to retry.
+pub fn retry_failed(c: Rgb) {
+    if let Ok(mut last) = LAST.lock() { if matches!(*last, Some((_, prev)) if prev == c) { *last = None; } }
+}
+
 pub fn forget_last() {
+    if let Ok(mut value) = APPLIED.lock() { *value = None; }
     if let Ok(mut last) = LAST.lock() {
         *last = None;
     }
@@ -153,7 +164,7 @@ mod imp {
         }
     }
 
-    pub fn apply(c: (u8, u8, u8)) -> Result<(), String> {
+    pub fn apply(c: (u8, u8, u8), notify: impl FnOnce()) -> Result<(), String> {
         let (r, g, b) = c;
         let pal = super::palette(c);
         let dark = (pal[20], pal[21], pal[22]); // the darker shade Windows uses for Start
@@ -168,6 +179,7 @@ mod imp {
             & set_dword(DWM, w!("AccentColor"), super::abgr(r, g, b))
             & set_dword(DWM, w!("ColorizationColor"), super::argb(r, g, b))
             & set_dword(DWM, w!("ColorizationAfterglow"), super::argb(r, g, b));
+        if ok { notify(); }
         broadcast();
         if ok { Ok(()) } else { Err("Windows refused part of the accent change".into()) }
     }
@@ -192,7 +204,7 @@ pub use imp::{apply, read_backup, restore};
 #[cfg(not(windows))]
 pub fn read_backup() -> AccentBackup { AccentBackup::default() }
 #[cfg(not(windows))]
-pub fn apply(_c: (u8, u8, u8)) -> Result<(), String> { Err("Theme sync is only available on Windows".into()) }
+pub fn apply(_c: (u8, u8, u8), _notify: impl FnOnce()) -> Result<(), String> { Err("Theme sync is only available on Windows".into()) }
 #[cfg(not(windows))]
 pub fn restore(_b: &AccentBackup) {}
 
@@ -217,6 +229,14 @@ mod tests {
         assert_eq!(&p[12..15], &[40, 120, 200]);
         assert!(p[0] > p[4] && p[4] > p[8] && p[8] > 40, "lighter shades get lighter");
         assert!(p[16] < 40 && p[20] < p[16] && p[24] < p[20], "darker shades get darker");
+    }
+    #[test]
+    fn a_near_black_accent_still_makes_a_valid_palette() {
+        // what RGB wallpapers pin the taskbar to: lighter shades lift off the dark, darker ones stay at or above black
+        let p = palette((27, 27, 29));
+        assert_eq!(&p[12..15], &[27, 27, 29]);
+        assert!(p[0] > p[4] && p[4] > p[8] && p[8] > 27, "lighter shades still get lighter");
+        assert!(p[16] < 27 && p[20] < p[16] && p[24] < p[20], "darker shades still get darker");
     }
     #[test]
     fn rate_limit_rejects_repeats() {

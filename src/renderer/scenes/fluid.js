@@ -79,6 +79,7 @@ export default class Fluid {
     this.queue = this.queue || [];
     if (this.fresh) { this.fresh = false; this.burst(5 + (Math.random() * 4 | 0)); }
     if (!inp.motion) return this.queue.length > 0;
+    dt = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 0.1) : 0;   // a huge or broken time step must never become a huge amount of work
     const s = this.s, p = inp.pointer;
     if (p.active && this.last) {
       const dx = p.x - this.last.x, dy = p.y - this.last.y;
@@ -86,7 +87,8 @@ export default class Fluid {
     }
     this.last = p.active ? { x: p.x, y: p.y } : null;
     this.acc += dt * (s.ambient / 100) * 1.4;
-    while (this.acc > 1) { this.acc -= Math.random() * 2; this.queue.push([rand(.05, .95), rand(.05, .95), 900 * (Math.random() - .5), 900 * (Math.random() - .5), this.color(4), rand(.7, 1.6)]); }
+    for (let n = 0; this.acc > 1 && n < 8; n++) { this.acc -= Math.random() * 2; this.queue.push([rand(.05, .95), rand(.05, .95), 900 * (Math.random() - .5), 900 * (Math.random() - .5), this.color(4), rand(.7, 1.6)]); }
+    if (!Number.isFinite(this.acc) || this.acc > 8) this.acc = 0;
     if (inp.audio.beat && s.audioBurst > 0) this.burst(1 + Math.round(inp.audio.bass * 3 * s.audioBurst / 100), 0.6 + inp.audio.bass);
     this.dt = Math.min(dt, 1 / 30);
     return true;

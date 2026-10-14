@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silk Engine Island</title>
+<link rel="stylesheet" href="shared/surface-theme.css"><link rel="stylesheet" href="island/island.css">
+</head>
+<body>
+<main class="island" id="island" data-state="hidden" data-tab="quick">
+  <div class="shell" id="shell">
+    <button class="peek" id="peek" type="button" aria-label="Open the toolbar" tabindex="-1">
+      <span class="peek-time" id="peekTime">--:--</span>
+      <span class="peek-sep" aria-hidden="true"></span>
+      <span class="peek-stat" hidden><i class="dot cpu"></i><b id="peekCpu">--</b><small>CPU</small></span>
+      <span class="peek-stat" hidden><i class="dot ram"></i><b id="peekRam">--</b><small>RAM</small></span>
+      <span class="peek-battery" id="peekBattery" aria-label="Battery information unavailable"><svg viewBox="0 0 24 14" aria-hidden="true"><rect x="1" y="1" width="19" height="12" rx="3"/><path d="M22 5v4"/><rect id="batteryFill" x="3" y="3" width="0" height="8" rx="1.5" class="battery-fill"/></svg><b id="batteryPercent">—</b></span>
+      <span class="peek-wave" id="peekWave" role="img" aria-label="System audio visualizer, idle"></span>
+      <svg class="peek-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <div class="panel" id="panel" aria-hidden="true">
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Toolbar sections"><span class="tab-pill" id="tabPill" aria-hidden="true"></span></nav>
+      <div class="views" id="views"></div>
+      <div class="note" id="note" role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="island/island.js"></script>
+</body>
+</html>

@@ -7,9 +7,9 @@ export function waitForNavigationIdle(){
 }
 export function installScrolling(){
   const idle=()=>{clearTimeout(timer);if(!busy)return;busy=false;document.documentElement.classList.remove('navigating');document.dispatchEvent(new Event('studio-navigation-idle'));};
-  const activity=()=>{
+  const activity=(duration=180)=>{
     if(!busy){busy=true;document.documentElement.classList.add('navigating');document.dispatchEvent(new Event('studio-navigation-start'));}
-    clearTimeout(timer);timer=setTimeout(idle,180);
+    clearTimeout(timer);timer=setTimeout(idle,typeof duration==='number'?Math.max(180,Math.min(1000,duration)):180);
   };
   document.addEventListener('wheel',activity,{passive:true,capture:true});
   document.addEventListener('scroll',activity,{passive:true,capture:true});

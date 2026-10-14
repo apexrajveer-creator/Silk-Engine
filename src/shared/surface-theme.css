@@ -1,0 +1,12 @@
+/* Registered values interpolate inside gradients and controls without a JavaScript frame loop. */
+@property --accent {syntax:"<color>";inherits:true;initial-value:#344d78}
+@property --accent-rgb {syntax:"<number>#";inherits:true;initial-value:52,77,120}
+@property --accent-glow {syntax:"<number>#";inherits:true;initial-value:137,152,177}
+@property --accent-bright {syntax:"<color>";inherits:true;initial-value:#8998b1}
+@property --accent-soft {syntax:"<color>";inherits:true;initial-value:#b2bbcd}
+@property --surface-top {syntax:"<number>#";inherits:true;initial-value:31,42,60}
+@property --surface-bottom {syntax:"<number>#";inherits:true;initial-value:18,24,34}
+:root{--theme-duration:220ms;transition:--accent var(--theme-duration) ease-out,--accent-rgb var(--theme-duration) ease-out,--accent-glow var(--theme-duration) ease-out,--accent-bright var(--theme-duration) ease-out,--accent-soft var(--theme-duration) ease-out,--surface-top var(--theme-duration) ease-out,--surface-bottom var(--theme-duration) ease-out,--island-opacity 120ms ease-out}
+@media(prefers-reduced-motion:reduce){:root{transition:none!important}}
+
+@property --island-opacity{syntax:"<number>";inherits:true;initial-value:.88}

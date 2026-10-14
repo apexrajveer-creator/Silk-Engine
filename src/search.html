@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Silk — Circle to Search</title><link rel="stylesheet" href="shared/surface-theme.css"><link rel="stylesheet" href="search/search.css"></head>
+<body data-state="loading">
+<img id="screen" alt="Frozen screen capture" draggable="false">
+<canvas id="trace" aria-label="Draw a freeform outline around what you want to search"></canvas>
+<div class="toolbar" id="toolbar" role="region" aria-label="Circle to Search">
+ <button id="search" class="primary" type="button" disabled>Search with Lens</button><button id="redraw" type="button" disabled>Redraw</button>
+ <small><kbd>Esc</kbd> to cancel</small><span id="hint" role="status" hidden></span>
+</div>
+<script type="module" src="search/search.js"></script></body></html>

@@ -40,6 +40,8 @@ pub const ACTIONS: &[Action] = &[
     a("audio", "Input", "Toggle audio reactivity", "React to system audio", "Ctrl+Alt+Shift+A"),
     a("interactive", "Input", "Toggle cursor reaction", "React to the cursor on the desktop", "Ctrl+Alt+Shift+C"),
     a("studio", "App", "Open Silk Engine", "Bring up the Studio", "Ctrl+Alt+Shift+S"),
+    a("circleSearch", "App", "Circle to Search", "Outline anything on screen and search Google Lens", "Ctrl+Alt+Shift+0"),
+    a("island", "App", "Open the island", "The top-edge toolbar, on this screen", "Ctrl+Alt+Shift+I"),
     a("widgets", "App", "Show or hide widgets", "All desktop widgets", "Ctrl+Alt+Shift+W"),
     a("restart", "App", "Restart wallpaper", "Reload the renderer", "Ctrl+Alt+Shift+R"),
     a("profile1", "Desktops", "Apply desktop 1", "Your first saved desktop", ""),

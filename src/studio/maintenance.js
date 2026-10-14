@@ -45,7 +45,7 @@ export function maintenance({ bridge, flush, notify, state }) {
     await flush(); await bridge.invoke('undo_reset'); notify('Previous preferences restored');
   });
   action('showDiagnostics', async () => {
-    const native = bridge.isApp ? await bridge.invoke('diagnostics') : { platform: 'browser', version: '1.0.0', monitors: state().monitors };
+    const native = bridge.isApp ? await bridge.invoke('diagnostics') : { platform: 'browser', version: '1.5.0', monitors: state().monitors };
     $('diagnosticsText').value = JSON.stringify({ ...native, ui: { dpr: devicePixelRatio, width: innerWidth, height: innerHeight, online: navigator.onLine }, errors }, null, 2);
     $('diagnosticsPanel').hidden = false;
   });

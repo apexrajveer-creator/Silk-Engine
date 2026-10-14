@@ -1,0 +1,1 @@
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"circle-search","description":"Freeform screen search. Core events only; capture and browser handoff use caller-checked application commands.","windows":["circle-search"],"permissions":["core:default"]}

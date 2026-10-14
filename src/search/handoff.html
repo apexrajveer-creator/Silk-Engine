@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Google Lens</title><style>html{color-scheme:dark}body{background:#12141a;color:#b9c3d5;font:13px system-ui;margin:24px}form{display:none}button,a{color:inherit;background:#ffffff14;border:1px solid #ffffff30;border-radius:999px;padding:10px 16px;font:inherit;margin-right:8px}a[hidden]{display:none}</style></head><body><p id="status" role="status">Opening Lens…</p><button id="retry" disabled hidden>Retry</button><a id="download" hidden download="silk-selection.png">Save selection</a><form id="form" method="post" enctype="multipart/form-data" action="https://lens.google.com/upload"><input id="file" type="file" name="encoded_image" accept="image/png"><input type="hidden" name="ep" value="subb"></form><script nonce="silk">
+(async()=>{const status=document.getElementById('status'),form=document.getElementById('form'),file=document.getElementById('file'),retry=document.getElementById('retry');let blob,url;
+try{const response=await fetch('image.png',{cache:'no-store',credentials:'omit'});if(!response.ok)throw Error('The selection expired. Run Circle to Search again.');blob=await response.blob();url=URL.createObjectURL(blob);const download=document.getElementById('download');download.href=url;
+const transfer=new DataTransfer();transfer.items.add(new File([blob],'silk-selection.png',{type:'image/png'}));file.files=transfer.files;retry.disabled=false;
+const send=()=>{form.action='https://lens.google.com/upload';form.submit();};retry.onclick=send;send();
+}catch(error){status.textContent=error.message||'Could not open Lens. Redraw and search again.';retry.hidden=retry.disabled;if(url)document.getElementById('download').hidden=false;}
+})();
+</script></body></html>

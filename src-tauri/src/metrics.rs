@@ -2,6 +2,7 @@
 #[cfg(windows)]
 pub fn sample() -> serde_json::Value {
     use std::sync::Mutex;
+    use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
     #[repr(C)]
     #[derive(Default)]
     struct FileTime {
@@ -64,10 +65,15 @@ pub fn sample() -> serde_json::Value {
         } else {
             None
         };
-        serde_json::json!({"cpu":cpu,"ram":ram,"uptime":GetTickCount64()/1000})
+        let mut power = SYSTEM_POWER_STATUS::default();
+        let power_known = GetSystemPowerStatus(&mut power).is_ok();
+        let present = (power_known && power.BatteryFlag != 255).then_some(power.BatteryFlag & 128 == 0);
+        let battery = (present == Some(true) && power.BatteryLifePercent <= 100).then_some(power.BatteryLifePercent);
+        let charging = present == Some(true) && power.BatteryFlag & 8 != 0;
+        serde_json::json!({"battery":battery,"hasBattery":present,"charging":charging,"cpu":cpu,"ram":ram,"ramTotal":memory.total,"ramAvail":memory.avail,"uptime":GetTickCount64()/1000})
     }
 }
 #[cfg(not(windows))]
 pub fn sample() -> serde_json::Value {
-    serde_json::json!({"cpu":null,"ram":null,"uptime":0})
+    serde_json::json!({"battery":null,"hasBattery":null,"charging":false,"cpu":null,"ram":null,"ramTotal":null,"ramAvail":null,"uptime":0})
 }

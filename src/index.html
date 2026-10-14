@@ -213,7 +213,7 @@
 <nav class="dock" aria-label="Sections">
   <div class="dock-panel glass">
     <button class="dock-item active" data-tab="library" aria-label="Library"><svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/><path d="m3 17.5 9 5 9-5" opacity=".55"/></svg><span class="dock-label">Library</span></button>
-    <button class="dock-item" data-tab="desktops" aria-label="Desktops"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8M12 17v4"/></svg><span class="dock-label">Desktops</span></button>
+    <button class="dock-item" data-tab="desktops" aria-label="Desktops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v-.5A1.5 1.5 0 0 1 9.5 3H19a2 2 0 0 1 2 2v9.5a1.5 1.5 0 0 1-1.5 1.5H19"/><rect x="3" y="8" width="14" height="13" rx="2.5"/><path d="M3 12h14M7 16h6"/></svg><span class="dock-label">Desktops</span></button>
     <button class="dock-item" data-tab="widgets" aria-label="Widgets"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/></svg><span class="dock-label">Widgets</span></button>
     <button class="dock-item" data-tab="display" aria-label="Display"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2.5"/><path d="M8 21h8M12 17v4"/></svg><span class="dock-label">Display</span></button>
     <button class="dock-item" data-tab="system" aria-label="System"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span class="dock-label">System</span></button>
@@ -236,6 +236,10 @@
     </div>
   </div>
 </aside>
+<div class="safe-banner" id="safeBanner" role="alert" hidden>
+  <div class="safe-text"><b>Safe mode</b><span>Silk Engine closed unexpectedly several times in a row, so it started with simple settings: Living Silk, with hotkeys, widgets and audio switched off. Your own settings were saved aside and are not lost.</span></div>
+  <div class="safe-actions"><button class="btn small" type="button" data-act="restore">Restore my settings</button><button class="btn small tinted" type="button" data-act="keep">Keep safe settings</button></div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div id="drop" hidden><div class="drop-card glass"><img src="assets/echelon-bird.svg" alt=""><b>Drop to add</b><span>Videos, GIFs, images or a web wallpaper folder</span></div></div>
 <dialog id="discoverDialog" class="discover-dialog glass">
