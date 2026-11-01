@@ -12,7 +12,6 @@ See [UPDATE-1.5.0.md](UPDATE-1.5.0.md) for changes, validation and the Windows r
 *by ECHELON*
 
 ![Downloads](https://img.shields.io/github/downloads/apexrajveer-creator/Silk-Engine/total?style=flat&logo=github&logoColor=white&label=downloads&labelColor=black&color=olive)
-[![Check](https://github.com/apexrajveer-creator/Silk-Engine/actions/workflows/check.yml/badge.svg)](https://github.com/apexrajveer-creator/Silk-Engine/actions/workflows/check.yml)
 ![Version](https://img.shields.io/badge/version-1.5.0-white?labelColor=000000)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0a52ff?labelColor=000000)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24c8db?labelColor=000000)
