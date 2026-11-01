@@ -9,9 +9,9 @@ See [UPDATE-1.5.0.md](UPDATE-1.5.0.md) for changes, validation and the Windows r
 # Silk Engine
 
 **Live wallpapers and real-time GPU simulations, living behind your Windows desktop icons.**
-
 *by ECHELON*
-![Downloads](https://img.shields.io/github/downloads/apexrajveer-creator/Silk-Engine/total?style=for-the-badge&logo=github&label=Downloads)
+
+![Downloads](https://img.shields.io/github/downloads/apexrajveer-creator/Silk-Engine/total?style=flat&logo=github&logoColor=white&label=downloads&labelColor=black&color=olive)
 [![Check](https://github.com/apexrajveer-creator/Silk-Engine/actions/workflows/check.yml/badge.svg)](https://github.com/apexrajveer-creator/Silk-Engine/actions/workflows/check.yml)
 ![Version](https://img.shields.io/badge/version-1.5.0-white?labelColor=000000)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0a52ff?labelColor=000000)
